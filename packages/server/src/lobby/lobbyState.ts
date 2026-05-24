@@ -99,7 +99,7 @@ export function addPlayer(
   const player: PublicPlayer = {
     sessionId: args.sessionId,
     displayName: args.displayName,
-    isReady: false,
+    isReady: claimsHost,
     isHost: claimsHost,
     joinedAt: args.now,
     isConnected: true,
@@ -217,7 +217,8 @@ export function canStartGame(
 
   const players = Array.from(state.players.values());
   if (players.length < 5) return { ok: false, reason: 'not_enough_players' };
-  if (!players.every((p) => p.isReady)) return { ok: false, reason: 'not_all_ready' };
+  const nonHostPlayers = players.filter((p) => p.sessionId !== state.hostSessionId);
+  if (!nonHostPlayers.every((p) => p.isReady)) return { ok: false, reason: 'not_all_ready' };
 
   return { ok: true };
 }

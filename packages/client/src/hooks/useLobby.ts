@@ -29,6 +29,7 @@ export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
   });
 
   const socketRef = useRef<PartySocket | null>(null);
+  const isTerminatedRef = useRef(false);
 
   // Open the socket once, keep it alive for the component's lifetime.
   useEffect(() => {
@@ -40,7 +41,10 @@ export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
     socketRef.current = socket;
 
     const handleOpen = () => {
-      // Send JOIN immediately on (re)connect.
+      if (isTerminatedRef.current) {
+        socket.close();
+        return;
+      }
       sendMessage(socket, {
         type: 'JOIN',
         sessionId,
@@ -53,6 +57,9 @@ export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
     const handleMessage = (e: MessageEvent<string>) => {
       const msg = parseServerMessage(e.data);
       if (!msg) return;
+      if (msg.type === 'KICKED' || msg.type === 'ROOM_CLOSED') {
+        isTerminatedRef.current = true;
+      }
       send(msg as never);
     };
 

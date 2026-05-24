@@ -1,4 +1,4 @@
-import { Server, type Connection, type ConnectionContext } from 'partyserver';
+import type * as Party from 'partykit/server';
 import {
   ClientMessageSchema,
   HOST_DISCONNECT_TIMEOUT_MS,
@@ -35,17 +35,14 @@ interface ConnectionData {
   sessionId: SessionId;
 }
 
-/** Maps connection.id (PartyKit's per-socket id) → sessionId. */
 const ALARM_KEY_HOST_TIMEOUT = 'alarm:host-timeout';
 const ALARM_KEY_IDLE_TTL = 'alarm:idle-ttl';
 const STATE_KEY = 'state:lobby';
 
-export default class LobbyServer extends Server {
-  static override options = {
-    // Use Hibernation API so the DO doesn't burn CPU while idle.
-    // Outgoing messages are free; the DO spins up only on incoming.
-    hibernate: true,
-  };
+export default class LobbyServer implements Party.Server {
+  static options: Party.ServerOptions = { hibernate: true };
+
+  constructor(readonly room: Party.Room) {}
 
   /** Authoritative room state. */
   private lobby: LobbyState = createEmptyLobby('');
@@ -53,60 +50,51 @@ export default class LobbyServer extends Server {
   /** Whether we've already loaded state from storage. */
   private hydrated = false;
 
-  /**
-   * Called by PartyKit when the DO starts. Restore state from storage if any.
-   */
-  override async onStart(): Promise<void> {
+  async onStart(): Promise<void> {
     if (this.hydrated) return;
-    const stored = await this.ctx.storage.get<SerializedState>(STATE_KEY);
+    const stored = await this.room.storage.get<SerializedState>(STATE_KEY);
     if (stored) {
       this.lobby = deserializeState(stored);
     } else {
-      this.lobby = createEmptyLobby(this.name);
+      this.lobby = createEmptyLobby(this.room.id);
     }
     this.hydrated = true;
-    // Always reset the idle TTL alarm on any activity.
     await this.scheduleIdleAlarm();
   }
 
-  /**
-   * Called for every incoming WebSocket connection.
-   */
-  override async onConnect(conn: Connection, _ctx: ConnectionContext): Promise<void> {
-    // The client sends a JOIN message immediately after connecting.
-    // We do nothing here except wait. Validation happens in onMessage.
-    void conn; // silence unused
+  async onConnect(conn: Party.Connection, _ctx: Party.ConnectionContext): Promise<void> {
+    void conn;
   }
 
-  override async onMessage(conn: Connection, message: string): Promise<void> {
+  async onMessage(message: string | ArrayBuffer | ArrayBufferView, sender: Party.Connection): Promise<void> {
+    if (typeof message !== 'string') return;
     if (!this.hydrated) await this.onStart();
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(message);
     } catch {
-      conn.close(1003, 'invalid_json');
+      sender.close(1003, 'invalid_json');
       return;
     }
 
     const result = ClientMessageSchema.safeParse(parsed);
     if (!result.success) {
-      conn.close(1003, 'invalid_message');
+      sender.close(1003, 'invalid_message');
       return;
     }
     const msg = result.data;
 
-    // Look up the sessionId tag attached to this connection.
-    const data = this.getConnData(conn);
+    const data = this.getConnData(sender);
 
     switch (msg.type) {
       case 'JOIN':
-        await this.handleJoin(conn, msg.sessionId, msg.displayName, msg.isHost);
+        await this.handleJoin(sender, msg.sessionId, msg.displayName, msg.isHost);
         return;
 
       case 'SET_READY':
         if (!data) {
-          conn.close(1008, 'not_joined');
+          sender.close(1008, 'not_joined');
           return;
         }
         await this.handleSetReady(data.sessionId, msg.isReady);
@@ -114,7 +102,7 @@ export default class LobbyServer extends Server {
 
       case 'KICK_PLAYER':
         if (!data) {
-          conn.close(1008, 'not_joined');
+          sender.close(1008, 'not_joined');
           return;
         }
         await this.handleKick(data.sessionId, msg.targetSessionId);
@@ -122,7 +110,7 @@ export default class LobbyServer extends Server {
 
       case 'START_GAME':
         if (!data) {
-          conn.close(1008, 'not_joined');
+          sender.close(1008, 'not_joined');
           return;
         }
         await this.handleStartGame(data.sessionId);
@@ -131,17 +119,15 @@ export default class LobbyServer extends Server {
       case 'LEAVE_ROOM':
         if (!data) return;
         await this.handleLeave(data.sessionId);
-        conn.close(1000, 'left');
+        sender.close(1000, 'left');
         return;
     }
   }
 
-  override async onClose(conn: Connection): Promise<void> {
+  async onClose(conn: Party.Connection): Promise<void> {
     const data = this.getConnData(conn);
     if (!data) return;
 
-    // Has the user reconnected on a different connection? If so, don't mark them
-    // as disconnected (they have at least one active socket).
     if (this.hasOtherConnections(data.sessionId, conn.id)) return;
 
     const now = Date.now();
@@ -152,24 +138,17 @@ export default class LobbyServer extends Server {
       await this.scheduleHostTimeoutAlarm();
     }
 
-    // Broadcast updated player to others (isConnected: false).
     const player = this.lobby.players.get(data.sessionId);
     if (player) {
       this.broadcastMessage({ type: 'PLAYER_UPDATED', player }, [conn.id]);
     }
   }
 
-  /**
-   * Handles PartyKit alarms. We schedule two kinds:
-   * 1. Host disconnect timeout (5 min after host disconnects → close room)
-   * 2. Idle TTL (2 hr after any activity → cleanup)
-   */
-  override async onAlarm(): Promise<void> {
+  async onAlarm(): Promise<void> {
     if (!this.hydrated) await this.onStart();
 
     const now = Date.now();
 
-    // Host timeout check
     if (
       this.lobby.hostDisconnectedAt !== null &&
       now - this.lobby.hostDisconnectedAt >= HOST_DISCONNECT_TIMEOUT_MS
@@ -178,14 +157,12 @@ export default class LobbyServer extends Server {
       return;
     }
 
-    // Idle TTL check
-    const lastActivity = await this.ctx.storage.get<number>('lastActivityAt');
+    const lastActivity = await this.room.storage.get<number>('lastActivityAt');
     if (lastActivity && now - lastActivity >= ROOM_IDLE_TTL_MS) {
       await this.closeRoom('idle_ttl');
       return;
     }
 
-    // Reschedule whichever alarm is still relevant
     if (this.lobby.hostDisconnectedAt !== null) {
       await this.scheduleHostTimeoutAlarm();
     } else {
@@ -196,7 +173,7 @@ export default class LobbyServer extends Server {
   // ---------- Handlers ----------
 
   private async handleJoin(
-    conn: Connection,
+    conn: Party.Connection,
     sessionId: SessionId,
     displayName: string,
     isHost: boolean,
@@ -226,7 +203,6 @@ export default class LobbyServer extends Server {
     await this.persistState();
     await this.touchActivity();
 
-    // Send snapshot to the joining client first
     this.sendTo(conn, {
       type: 'STATE_SNAPSHOT',
       roomCode: this.lobby.roomCode,
@@ -235,9 +211,7 @@ export default class LobbyServer extends Server {
       selfSessionId: sessionId,
     });
 
-    // Notify others that someone joined / rejoined
-    const isNewPlayer = !this.lobby.players.has(sessionId) ? false : true;
-    void isNewPlayer; // both cases broadcast PLAYER_JOINED for simplicity
+    void (!this.lobby.players.has(sessionId) ? false : true);
     this.broadcastMessage({ type: 'PLAYER_JOINED', player: result.player }, [conn.id]);
   }
 
@@ -254,7 +228,6 @@ export default class LobbyServer extends Server {
     const result = kickPlayer(this.lobby, { requesterId, targetId });
     if (!result.ok) return;
 
-    // Find the target's connection(s) and notify them, then close.
     const targetConns = this.getConnectionsForSession(targetId);
     for (const c of targetConns) {
       this.sendTo(c, { type: 'KICKED' });
@@ -275,7 +248,6 @@ export default class LobbyServer extends Server {
     await this.persistState();
     await this.touchActivity();
 
-    // Phase 1: just send the stub. Phase 2 will replace this with card dealing.
     this.broadcastMessage({ type: 'GAME_STARTED_STUB' });
   }
 
@@ -283,7 +255,6 @@ export default class LobbyServer extends Server {
     const wasHost = this.lobby.hostSessionId === sessionId;
 
     if (wasHost) {
-      // Host voluntary leave closes the room immediately.
       await this.closeRoom('host_left');
       return;
     }
@@ -298,53 +269,51 @@ export default class LobbyServer extends Server {
 
   private async closeRoom(reason: 'host_left' | 'host_timeout' | 'idle_ttl'): Promise<void> {
     this.broadcastMessage({ type: 'ROOM_CLOSED', reason });
-    for (const c of this.getConnections()) {
+    for (const c of this.room.getConnections()) {
       c.close(1000, reason);
     }
-    // Clear persisted state — DO can be evicted; nothing to restore.
-    await this.ctx.storage.deleteAll();
-    this.lobby = createEmptyLobby(this.name);
+    await this.room.storage.deleteAll();
+    this.lobby = createEmptyLobby(this.room.id);
   }
 
   private async persistState(): Promise<void> {
-    await this.ctx.storage.put<SerializedState>(STATE_KEY, serializeState(this.lobby));
+    await this.room.storage.put<SerializedState>(STATE_KEY, serializeState(this.lobby));
   }
 
   private async touchActivity(): Promise<void> {
-    await this.ctx.storage.put('lastActivityAt', Date.now());
+    await this.room.storage.put('lastActivityAt', Date.now());
     await this.scheduleIdleAlarm();
   }
 
   private async scheduleHostTimeoutAlarm(): Promise<void> {
     if (this.lobby.hostDisconnectedAt === null) return;
     const fireAt = this.lobby.hostDisconnectedAt + HOST_DISCONNECT_TIMEOUT_MS;
-    await this.ctx.storage.put(ALARM_KEY_HOST_TIMEOUT, fireAt);
-    await this.ctx.storage.setAlarm(fireAt);
+    await this.room.storage.put(ALARM_KEY_HOST_TIMEOUT, fireAt);
+    await this.room.storage.setAlarm(fireAt);
   }
 
   private async scheduleIdleAlarm(): Promise<void> {
     const fireAt = Date.now() + ROOM_IDLE_TTL_MS;
-    await this.ctx.storage.put(ALARM_KEY_IDLE_TTL, fireAt);
-    // Only set if there's no earlier alarm pending
-    const currentAlarm = await this.ctx.storage.getAlarm();
+    await this.room.storage.put(ALARM_KEY_IDLE_TTL, fireAt);
+    const currentAlarm = await this.room.storage.getAlarm();
     if (currentAlarm === null || currentAlarm > fireAt) {
-      await this.ctx.storage.setAlarm(fireAt);
+      await this.room.storage.setAlarm(fireAt);
     }
   }
 
   private broadcastMessage(message: ServerMessage, exceptIds: string[] = []): void {
     const payload = JSON.stringify(message);
-    for (const conn of this.getConnections()) {
+    for (const conn of this.room.getConnections()) {
       if (exceptIds.includes(conn.id)) continue;
       try {
         conn.send(payload);
       } catch {
-        // Ignore send errors on dead sockets
+        // ignore dead sockets
       }
     }
   }
 
-  private sendTo(conn: Connection, message: ServerMessage): void {
+  private sendTo(conn: Party.Connection, message: ServerMessage): void {
     try {
       conn.send(JSON.stringify(message));
     } catch {
@@ -352,16 +321,16 @@ export default class LobbyServer extends Server {
     }
   }
 
-  private getConnData(conn: Connection): ConnectionData | null {
+  private getConnData(conn: Party.Connection): ConnectionData | null {
     return (conn.state as ConnectionData | null) ?? null;
   }
 
-  private setConnData(conn: Connection, data: ConnectionData): void {
+  private setConnData(conn: Party.Connection, data: ConnectionData): void {
     conn.setState(data);
   }
 
   private hasOtherConnections(sessionId: SessionId, exceptConnId: string): boolean {
-    for (const c of this.getConnections()) {
+    for (const c of this.room.getConnections()) {
       if (c.id === exceptConnId) continue;
       const d = this.getConnData(c);
       if (d?.sessionId === sessionId) return true;
@@ -369,9 +338,9 @@ export default class LobbyServer extends Server {
     return false;
   }
 
-  private getConnectionsForSession(sessionId: SessionId): Connection[] {
-    const result: Connection[] = [];
-    for (const c of this.getConnections()) {
+  private getConnectionsForSession(sessionId: SessionId): Party.Connection[] {
+    const result: Party.Connection[] = [];
+    for (const c of this.room.getConnections()) {
       const d = this.getConnData(c);
       if (d?.sessionId === sessionId) result.push(c);
     }
