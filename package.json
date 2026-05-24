@@ -1,0 +1,21 @@
+{
+  "name": "werewolf-companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Digital card dealer for Vietnamese werewolf (ma soi) game sessions",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:server": "npm run dev --workspace=@werewolf/server",
+    "dev:client": "npm run dev --workspace=@werewolf/client",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "type-check": "npm run type-check --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

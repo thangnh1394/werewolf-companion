@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  /* Color tokens — "Bàn gỗ kể chuyện" */
+  --color-bg-base: #1F2419;
+  --color-bg-surface: #2D3225;
+  --color-bg-surface-hi: #3D4533;
+  --color-bg-input-idle: #4A4533;
+
+  --color-text-primary: #F5EFE0;
+  --color-text-secondary: #8A8674;
+  --color-text-muted: #5A5848;
+
+  --color-accent: #E89B3C;
+  --color-accent-dim: #C99934;
+
+  --color-ready-bg: #4A6B2A;
+  --color-ready-text: #D4E8B0;
+
+  --color-danger: #D85A30;
+  --color-danger-border: #5A3027;
+
+  /* Typography */
+  --font-sans: "Be Vietnam Pro", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ---------- Base reset ---------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent overscroll bounce showing system bg under our forest dark theme */
+  overscroll-behavior: none;
+}
+
+body {
+  /* Mobile: lock the whole app to the visual viewport.
+     100dvh handles iOS Safari's URL bar correctly. */
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Prevent iOS double-tap zoom on buttons */
+button {
+  touch-action: manipulation;
+  font-family: inherit;
+}
+
+/* ---------- Thin amber scrollbar (Option A from design review) ---------- */
+
+.scrollable {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 155, 60, 0.30) transparent;
+}
+
+/* Webkit / Blink */
+.scrollable::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollable::-webkit-scrollbar-thumb {
+  background: rgba(232, 155, 60, 0.30);
+  border-radius: 2px;
+}
+.scrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 155, 60, 0.50);
+}
+
+/* ---------- Input reset (we style explicitly) ---------- */
+
+input {
+  font-family: inherit;
+}
+
+/* Hide native number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* ---------- Animation: fade-in for screen mounts ---------- */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 200ms ease-out;
+}

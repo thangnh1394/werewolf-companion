@@ -1,0 +1,9 @@
+{
+  "$schema": "https://www.partykit.io/schema.json",
+  "name": "werewolf-companion",
+  "main": "src/server.ts",
+  "compatibilityDate": "2024-11-12",
+  "parties": {
+    "lobby": "src/server.ts"
+  }
+}
