@@ -34,9 +34,20 @@ export function HomeScreen() {
 
       <div className="flex-1" />
 
-      <div className="border-t border-bg-surface pt-4 flex items-center justify-center gap-2">
-        <Users size={14} className="text-text-secondary" aria-hidden />
-        <span className="text-text-secondary text-xs">5–20 người chơi mỗi phòng</span>
+      <div className="border-t border-bg-surface pt-4">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Users size={14} className="text-text-secondary" aria-hidden />
+          <span className="text-text-secondary text-xs">5–20 người chơi mỗi phòng</span>
+        </div>
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => navigate('/about')}
+            className="bg-transparent border-0 text-text-secondary text-[11px] underline-offset-2 hover:underline active:scale-95"
+          >
+            Giới thiệu · Tín dụng ảnh
+          </button>
+        </div>
       </div>
     </div>
   );

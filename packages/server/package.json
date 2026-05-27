@@ -13,12 +13,11 @@
   },
   "dependencies": {
     "@werewolf/shared": "*",
-    "partyserver": "^0.0.66",
+    "partykit": "^0.0.114",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241112.0",
-    "partykit": "^0.0.114",
     "typescript": "^5.6.3",
     "vitest": "^2.1.5"
   }

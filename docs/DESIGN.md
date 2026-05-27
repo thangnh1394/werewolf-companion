@@ -5,6 +5,62 @@
 > **Direction:** "Bàn gỗ kể chuyện" — forest dark + amber accent, cozy storytelling vibe
 > **Display name (proposed):** "Sói Đêm"
 
+## 🔒 Golden Rules (project-wide, locked across all phases)
+
+These rules apply to EVERY screen, EVERY component, in EVERY phase. Phase 2+ designers must follow these without exception.
+
+### Golden Rule 1 — Unified scroll style
+
+All scrollable areas in the app use the SAME pattern as the lobby host view:
+
+```css
+/* Container */
+.scrollable {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;                                 /* Firefox */
+  scrollbar-color: rgba(232, 155, 60, 0.30) transparent;
+}
+
+/* Webkit/Blink */
+.scrollable::-webkit-scrollbar { width: 4px; }
+.scrollable::-webkit-scrollbar-track { background: transparent; }
+.scrollable::-webkit-scrollbar-thumb {
+  background: rgba(232, 155, 60, 0.30);
+  border-radius: 2px;
+}
+.scrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 155, 60, 0.50);
+}
+```
+
+**Layout rule:** Containers with scrollable content use a 3-zone vertical flex:
+- Header zone: `flex-shrink: 0` (sticky top)
+- Scrollable zone: `flex: 1 1 auto; min-height: 0; overflow-y: auto`
+- Footer zone (if any): `flex-shrink: 0` (sticky bottom)
+
+**NEVER** hard-code `max-height: <px>` or `min-height: <px>` on the scroll zone — let flex compute height from viewport.
+
+Outer container always uses `height: 100dvh` (NOT `100vh`) for correct iOS Safari behavior.
+
+This applies to: lobby player list, Main Desk Screen, Room Desk Editor (Phase 2.3), Card Detail Dialog if content overflows, and any future scrollable area.
+
+### Golden Rule 2 — Card descriptions must be accurate and actionable
+
+Every role description shown to the user must be:
+
+- **Accurate** — matches official ma sói rules (verified against Vietnamese ma sói community sources: dienmayxanh.com, xtmobile.vn, playplus.vn, hoanghamobile.com)
+- **Complete** — user must understand: WHEN they act (đêm đầu / mỗi đêm / khi chết), WHAT they do, WHO they can target, and KEY EDGE CASES (e.g., Bảo Vệ không bảo vệ liên tiếp 2 đêm; Già Làng chết khi treo cổ → mất các chức năng)
+- **Actionable** — a user reading the description should be able to play correctly without external rule lookup
+- **Structured** — uses consistent format: **Khả năng** + **Thời điểm dậy** + **Lưu ý**
+
+This applies wherever role info is displayed: CardDetailDialog, "Bài của tôi" reveal screen (Phase 2.5), Main Desk browse, Room Desk Editor previews.
+
+Single source of truth for role text: `packages/shared/src/cards.ts` (or wherever card data lives). Never duplicate description strings in UI components — always import from card data.
+
+---
+
 ## Visual direction summary
 
 The chosen direction evokes a warm storytelling gathering — friends huddled around a wooden table by lantern-light at dusk. Forest-dark backgrounds (charred green-black) provide a calm canvas; amber accents play the role of the lantern's flame. Sage-green badges signal "ready" (the village agrees); muted coral signals destructive actions (kick a player). Copy carries light flavor without becoming theatrical: "Đêm về, dân làng tụ họp..." as subtitle, "5 dân làng quanh bàn" as section header. Italic asides feel like a narrator murmuring the scene.

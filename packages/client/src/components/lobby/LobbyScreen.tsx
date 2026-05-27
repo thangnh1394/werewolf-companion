@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Layers as Cards, Check, DoorOpen, Flame, LogOut } from 'lucide-react';
+import { Layers as Cards, Check, DoorOpen, Flame, LogOut, Spade } from 'lucide-react';
 import { MIN_PLAYERS, type PublicPlayer, type SessionId } from '@werewolf/shared';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
@@ -8,6 +8,7 @@ import { useLobby } from '../../hooks/useLobby';
 import { ShareRoom } from './ShareRoom';
 import { PlayerList } from './PlayerList';
 import { KickConfirmDialog } from './KickConfirmDialog';
+import { MainDeskScreen } from '../cards/MainDeskScreen';
 import { formatRoomCode } from '../../lib/format';
 import { clearLastRoomCode } from '../../lib/storage';
 
@@ -32,6 +33,7 @@ export function LobbyScreen() {
 
   const [pendingKick, setPendingKick] = useState<PublicPlayer | null>(null);
   const [showStartStub, setShowStartStub] = useState(false);
+  const [showMainDesk, setShowMainDesk] = useState(false);
 
   // If we landed here without a name (e.g., shared link opened directly), bounce to join form.
   if (!displayName) {
@@ -102,14 +104,24 @@ export function LobbyScreen() {
               Phòng {formatRoomCode(code)}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={handleLeave}
-            aria-label="Rời phòng"
-            className="w-8 h-8 bg-transparent border border-bg-surface-hi rounded-[8px] text-text-primary inline-flex items-center justify-center active:scale-95"
-          >
-            <LogOut size={15} aria-hidden />
-          </button>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowMainDesk(true)}
+              aria-label="Xem bộ bài"
+              className="w-8 h-8 bg-transparent border border-bg-surface-hi rounded-[8px] text-text-primary inline-flex items-center justify-center active:scale-95"
+            >
+              <Spade size={15} aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={handleLeave}
+              aria-label="Rời phòng"
+              className="w-8 h-8 bg-transparent border border-bg-surface-hi rounded-[8px] text-text-primary inline-flex items-center justify-center active:scale-95"
+            >
+              <LogOut size={15} aria-hidden />
+            </button>
+          </div>
         </div>
         <p className="text-text-secondary text-xs italic mb-4">
           {allReady && enoughPlayers
@@ -204,6 +216,8 @@ export function LobbyScreen() {
         onConfirm={handleKickConfirm}
         onCancel={() => setPendingKick(null)}
       />
+
+      {showMainDesk && <MainDeskScreen onClose={() => setShowMainDesk(false)} />}
 
       <Dialog
         open={showStartStub}

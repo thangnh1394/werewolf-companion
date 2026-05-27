@@ -39,5 +39,11 @@ coverage/
 .eslintcache
 .turbo/
 
+# TypeScript build info
+*.tsbuildinfo
+
+# Vite auto-generated config (we use vite.config.ts)
+packages/*/vite.config.js
+
 # OS
 Thumbs.db

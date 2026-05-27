@@ -20,6 +20,8 @@
   --color-danger: #D85A30;
   --color-danger-border: #5A3027;
 
+  --color-solo: #C088E0;
+
   /* Typography */
   --font-sans: "Be Vietnam Pro", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }

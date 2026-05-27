@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
 import { HomeScreen } from './components/home/HomeScreen';
 import { CreateRoomForm } from './components/home/CreateRoomForm';
 import { JoinRoomForm } from './components/home/JoinRoomForm';
+import { AboutScreen } from './components/home/AboutScreen';
 import { LobbyScreen } from './components/lobby/LobbyScreen';
 
 /**
@@ -10,6 +11,7 @@ import { LobbyScreen } from './components/lobby/LobbyScreen';
  *   /create           → Create room form
  *   /join             → Join room form (also handles /?code=NNNNNN via redirect)
  *   /lobby/:code      → Lobby screen
+ *   /about            → About / credits
  *   *                 → 404 → home
  */
 export default function App() {
@@ -19,6 +21,7 @@ export default function App() {
       <Route path="/create" element={<CreateRoomForm />} />
       <Route path="/join" element={<JoinRoomForm />} />
       <Route path="/lobby/:code" element={<LobbyScreen />} />
+      <Route path="/about" element={<AboutScreen />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
