@@ -68,6 +68,13 @@ export function LobbyScreen() {
     if (phase === 'game_starting') setShowStartStub(true);
   }, [phase]);
 
+  // Phase 2.3: deck size derived from context (must be above early returns to
+  // keep hook order consistent across renders — React Rules of Hooks).
+  const deckSize = useMemo(
+    () => Object.values(context.roomDesk).reduce((sum, n) => sum + n, 0),
+    [context.roomDesk],
+  );
+
   // Edge / terminal states
   if (phase === 'joining_error') {
     return <JoinErrorScreen reason={context.joinError} onHome={() => navigate('/')} />;
@@ -87,11 +94,6 @@ export function LobbyScreen() {
   const enoughPlayers = totalCount >= MIN_PLAYERS;
   const allReady = totalCount > 0 && readyCount === totalCount;
 
-  // Phase 2.3: deck must match player count to start
-  const deckSize = useMemo(
-    () => Object.values(context.roomDesk).reduce((sum, n) => sum + n, 0),
-    [context.roomDesk],
-  );
   const deckMatched = deckSize === totalCount && totalCount > 0;
   const canStart = enoughPlayers && allReady && deckMatched;
 

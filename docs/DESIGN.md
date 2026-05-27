@@ -59,6 +59,30 @@ This applies wherever role info is displayed: CardDetailDialog, "Bài của tôi
 
 Single source of truth for role text: `packages/shared/src/cards.ts` (or wherever card data lives). Never duplicate description strings in UI components — always import from card data.
 
+### Golden Rule 3 — All React hooks before any early returns
+
+In every React component, **all hooks** (`useState`, `useEffect`, `useMemo`, `useCallback`, custom hooks like `useLobby`) **MUST be called before any conditional `return null` or early return**.
+
+❌ **Wrong** — causes "Rendered fewer hooks than expected" + UI hang on state transition:
+```tsx
+const [foo, setFoo] = useState(0);
+if (phase === 'kicked') return <KickedScreen />;   // early return
+const bar = useMemo(() => computeBar(), [foo]);    // hook AFTER return — crashes
+```
+
+✅ **Correct** — consistent hook count across all renders:
+```tsx
+const [foo, setFoo] = useState(0);
+const bar = useMemo(() => computeBar(), [foo]);    // all hooks first
+if (phase === 'kicked') return <KickedScreen />;   // then early returns
+```
+
+Rationale: React tracks hooks by call order, not by variable name. If render N calls 9 hooks and render N+1 calls 8 hooks, React's hook tracking gets misaligned → component crashes mid-render → UI freezes / blank screen.
+
+Pattern that triggered this in Phase 2.3: `deckSize = useMemo(...)` was added after `if (phase === 'kicked') return ...`. When server kicked a player, state transitioned `in_lobby → kicked`, the early return fired, but a useMemo from previous render was now "missing" → React error → screen hung.
+
+This rule applies to **every component**. When adding new hooks during a phase, verify they're at the top of the function body before any conditional returns. Use the ESLint plugin `react-hooks/rules-of-hooks` if configured (it would have caught this).
+
 ---
 
 ## Visual direction summary
