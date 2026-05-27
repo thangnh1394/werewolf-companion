@@ -19,12 +19,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Setup PartyKit credentials
+        run: |
+          mkdir -p ~/.partykit
+          echo "{\"login\":\"thangnh1394\",\"access_token\":\"${{ secrets.PARTYKIT_TOKEN }}\",\"type\":\"clerk\",\"username\":\"thangnh1394\",\"team\":\"thangnh1394\"}" > ~/.partykit/config.json
+
       - name: Deploy PartyKit server
         working-directory: packages/server
-        env:
-          PARTYKIT_TOKEN: ${{ secrets.PARTYKIT_TOKEN }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx partykit deploy
 
   deploy-client:
