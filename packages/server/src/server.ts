@@ -3,6 +3,7 @@ import {
   ClientMessageSchema,
   HOST_DISCONNECT_TIMEOUT_MS,
   ROOM_IDLE_TTL_MS,
+  findCard,
   type ServerMessage,
   type SessionId,
 } from '@werewolf/shared';
@@ -10,11 +11,13 @@ import {
   addPlayer,
   canStartGame,
   createEmptyLobby,
+  deckAsRecord,
   getPlayersList,
   kickPlayer,
   type LobbyState,
   markDisconnected,
   removePlayer,
+  setCardCount,
   setPlayerReady,
   startGame,
 } from './lobby/lobbyState.js';
@@ -121,6 +124,14 @@ export default class LobbyServer implements Party.Server {
         await this.handleLeave(data.sessionId);
         sender.close(1000, 'left');
         return;
+
+      case 'SET_CARD_COUNT':
+        if (!data) {
+          sender.close(1008, 'not_joined');
+          return;
+        }
+        await this.handleSetCardCount(data.sessionId, msg.cardId, msg.count);
+        return;
     }
   }
 
@@ -209,6 +220,7 @@ export default class LobbyServer implements Party.Server {
       phase: this.lobby.phase,
       players: getPlayersList(this.lobby),
       selfSessionId: sessionId,
+      roomDesk: deckAsRecord(this.lobby),
     });
 
     void (!this.lobby.players.has(sessionId) ? false : true);
@@ -263,6 +275,28 @@ export default class LobbyServer implements Party.Server {
     await this.persistState();
     await this.touchActivity();
     this.broadcastMessage({ type: 'PLAYER_LEFT', sessionId });
+  }
+
+  private async handleSetCardCount(
+    requesterId: SessionId,
+    cardId: string,
+    count: number,
+  ): Promise<void> {
+    // Only host may edit room desk
+    if (this.lobby.hostSessionId !== requesterId) return;
+    // Only during lobby phase (locked during play)
+    if (this.lobby.phase !== 'lobby') return;
+    // Defense in depth: cardId must be a known card
+    if (!findCard(cardId)) return;
+
+    this.lobby = setCardCount(this.lobby, cardId, count);
+    await this.persistState();
+    await this.touchActivity();
+
+    this.broadcastMessage({
+      type: 'ROOM_DESK_UPDATED',
+      deck: deckAsRecord(this.lobby),
+    });
   }
 
   // ---------- Helpers ----------
@@ -356,6 +390,8 @@ interface SerializedState {
   players: Array<[string, ReturnType<typeof JSON.parse>]>;
   hostSessionId: string | null;
   hostDisconnectedAt: number | null;
+  /** Optional for backward compat with rooms created before Phase 2.3. */
+  roomDesk?: Array<[string, number]>;
 }
 
 function serializeState(state: LobbyState): SerializedState {
@@ -365,6 +401,7 @@ function serializeState(state: LobbyState): SerializedState {
     players: Array.from(state.players.entries()),
     hostSessionId: state.hostSessionId,
     hostDisconnectedAt: state.hostDisconnectedAt,
+    roomDesk: Array.from(state.roomDesk.entries()),
   };
 }
 
@@ -373,7 +410,8 @@ function deserializeState(s: SerializedState): LobbyState {
     roomCode: s.roomCode,
     phase: s.phase,
     players: new Map(s.players),
-    hostSessionId: s.hostSessionId,
+    hostSessionId: s.hostSessionId as SessionId | null,
     hostDisconnectedAt: s.hostDisconnectedAt,
+    roomDesk: new Map(s.roomDesk ?? []),
   };
 }

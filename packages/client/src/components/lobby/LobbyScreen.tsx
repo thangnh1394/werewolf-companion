@@ -4,11 +4,14 @@ import { Layers as Cards, Check, DoorOpen, Flame, LogOut, Spade } from 'lucide-r
 import { MIN_PLAYERS, type PublicPlayer, type SessionId } from '@werewolf/shared';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
+import { Toast } from '../ui/Toast';
 import { useLobby } from '../../hooks/useLobby';
 import { ShareRoom } from './ShareRoom';
 import { PlayerList } from './PlayerList';
 import { KickConfirmDialog } from './KickConfirmDialog';
+import { RoomDeskPreview } from './RoomDeskPreview';
 import { MainDeskScreen } from '../cards/MainDeskScreen';
+import { RoomDeskEditor } from '../cards/RoomDeskEditor';
 import { formatRoomCode } from '../../lib/format';
 import { clearLastRoomCode } from '../../lib/storage';
 
@@ -34,6 +37,11 @@ export function LobbyScreen() {
   const [pendingKick, setPendingKick] = useState<PublicPlayer | null>(null);
   const [showStartStub, setShowStartStub] = useState(false);
   const [showMainDesk, setShowMainDesk] = useState(false);
+  const [showRoomDeskEditor, setShowRoomDeskEditor] = useState(false);
+  const [startErrorToast, setStartErrorToast] = useState<{
+    expected: number;
+    actual: number;
+  } | null>(null);
 
   // If we landed here without a name (e.g., shared link opened directly), bounce to join form.
   if (!displayName) {
@@ -78,12 +86,38 @@ export function LobbyScreen() {
   const totalCount = context.players.length;
   const enoughPlayers = totalCount >= MIN_PLAYERS;
   const allReady = totalCount > 0 && readyCount === totalCount;
-  const canStart = enoughPlayers && allReady;
+
+  // Phase 2.3: deck must match player count to start
+  const deckSize = useMemo(
+    () => Object.values(context.roomDesk).reduce((sum, n) => sum + n, 0),
+    [context.roomDesk],
+  );
+  const deckMatched = deckSize === totalCount && totalCount > 0;
+  const canStart = enoughPlayers && allReady && deckMatched;
 
   const handleLeave = () => {
     clearLastRoomCode();
     actions.leave();
     navigate('/');
+  };
+
+  const handleStartGame = () => {
+    if (deckSize !== totalCount) {
+      setStartErrorToast({ expected: totalCount, actual: deckSize });
+      return;
+    }
+    actions.startGame();
+  };
+
+  const handleIncrement = (cardId: string) => {
+    const currentCount = context.roomDesk[cardId] ?? 0;
+    actions.setCardCount(cardId, currentCount + 1);
+  };
+
+  const handleDecrement = (cardId: string) => {
+    const currentCount = context.roomDesk[cardId] ?? 0;
+    if (currentCount <= 0) return; // already at 0, no-op
+    actions.setCardCount(cardId, currentCount - 1);
   };
 
   const handleKickConfirm = () => {
@@ -134,6 +168,12 @@ export function LobbyScreen() {
         <div className="mb-3.5">
           <ShareRoom code={code} isHost={viewerIsHost} />
         </div>
+
+        <RoomDeskPreview
+          roomDesk={context.roomDesk}
+          isHost={viewerIsHost}
+          onEdit={() => setShowRoomDeskEditor(true)}
+        />
 
         <div className="flex items-center justify-between mb-2">
           <div className="text-text-secondary text-[11px] font-medium tracking-wider">
@@ -187,14 +227,16 @@ export function LobbyScreen() {
                 Chờ mọi người sẵn sàng
               </Button>
             ) : (
-              <Button fullWidth onClick={actions.startGame}>
+              <Button fullWidth onClick={handleStartGame}>
                 <Cards size={20} aria-hidden />
                 Bắt đầu chia bài
               </Button>
             )}
             {!canStart && (
               <p className="text-text-secondary text-[11px] text-center mt-2">
-                Khi tất cả sẵn sàng, bạn có thể bắt đầu
+                {!enoughPlayers || !allReady
+                  ? 'Khi tất cả sẵn sàng, bạn có thể bắt đầu'
+                  : `Cần đúng ${totalCount} thẻ trong bộ bài (hiện ${deckSize})`}
               </p>
             )}
           </>
@@ -218,6 +260,27 @@ export function LobbyScreen() {
       />
 
       {showMainDesk && <MainDeskScreen onClose={() => setShowMainDesk(false)} />}
+
+      {showRoomDeskEditor && viewerIsHost && (
+        <RoomDeskEditor
+          roomDesk={context.roomDesk}
+          playerCount={totalCount}
+          onIncrement={handleIncrement}
+          onDecrement={handleDecrement}
+          onClose={() => setShowRoomDeskEditor(false)}
+        />
+      )}
+
+      <Toast
+        open={startErrorToast !== null}
+        title="Số thẻ không khớp"
+        message={
+          startErrorToast
+            ? `Cần đúng ${startErrorToast.expected} thẻ trong bộ bài. Hiện tại có ${startErrorToast.actual}.`
+            : ''
+        }
+        onClose={() => setStartErrorToast(null)}
+      />
 
       <Dialog
         open={showStartStub}

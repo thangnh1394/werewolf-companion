@@ -22,6 +22,13 @@ export interface LobbyState {
   hostSessionId: SessionId | null;
   /** Epoch ms when host last had an active connection. Null if host is currently connected. */
   hostDisconnectedAt: number | null;
+  /**
+   * Room desk: card composition for the next match.
+   * Map keys are cardIds (from @werewolf/shared CARDS); values are counts >= 1.
+   * Cards with count 0 are removed from the map entirely.
+   * Persists across rounds (Phase 0 decision).
+   */
+  roomDesk: Map<string, number>;
 }
 
 export function createEmptyLobby(roomCode: string): LobbyState {
@@ -31,6 +38,7 @@ export function createEmptyLobby(roomCode: string): LobbyState {
     players: new Map(),
     hostSessionId: null,
     hostDisconnectedAt: null,
+    roomDesk: new Map(),
   };
 }
 
@@ -198,15 +206,16 @@ export function removePlayer(state: LobbyState, sessionId: SessionId): LobbyStat
 
 /**
  * Validates whether the host can start the game right now.
- * Phase 1 rule: minimum 5 players, all must be ready.
- * Phase 2 will add: room desk card count must match player count.
+ * Phase 1 rule: minimum 5 players, all must be ready (host auto-ready).
+ * Phase 2.3 added: room desk card count must match player count.
  */
 export type CanStartResult =
   | { ok: true }
   | {
       ok: false;
       reason: 'not_host' | 'not_enough_players' | 'not_all_ready' | 'already_playing';
-    };
+    }
+  | { ok: false; reason: 'deck_mismatch'; expected: number; actual: number };
 
 export function canStartGame(
   state: LobbyState,
@@ -220,7 +229,46 @@ export function canStartGame(
   const nonHostPlayers = players.filter((p) => p.sessionId !== state.hostSessionId);
   if (!nonHostPlayers.every((p) => p.isReady)) return { ok: false, reason: 'not_all_ready' };
 
+  const deckSize = getDeckSize(state);
+  const playerCount = players.length;
+  if (deckSize !== playerCount) {
+    return { ok: false, reason: 'deck_mismatch', expected: playerCount, actual: deckSize };
+  }
+
   return { ok: true };
+}
+
+// ---------- Room desk reducers ----------
+
+/**
+ * Set the count of a specific card in the room desk.
+ * count <= 0 removes the card entirely.
+ * count > MAX_PLAYERS is capped to MAX_PLAYERS (defensive — client should already validate).
+ */
+export function setCardCount(
+  state: LobbyState,
+  cardId: string,
+  count: number,
+): LobbyState {
+  const roomDesk = new Map(state.roomDesk);
+  if (count <= 0) {
+    roomDesk.delete(cardId);
+  } else {
+    roomDesk.set(cardId, Math.min(count, MAX_PLAYERS));
+  }
+  return { ...state, roomDesk };
+}
+
+/** Total number of cards in the deck (sum of all counts). */
+export function getDeckSize(state: LobbyState): number {
+  let total = 0;
+  for (const count of state.roomDesk.values()) total += count;
+  return total;
+}
+
+/** Convert internal Map to wire-friendly Record. */
+export function deckAsRecord(state: LobbyState): Record<string, number> {
+  return Object.fromEntries(state.roomDesk);
 }
 
 /**

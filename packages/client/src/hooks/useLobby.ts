@@ -109,6 +109,11 @@ export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
     if (s) sendMessage(s, { type: 'LEAVE_ROOM' });
   }, []);
 
+  const setCardCount = useCallback((cardId: string, count: number) => {
+    const s = socketRef.current;
+    if (s) sendMessage(s, { type: 'SET_CARD_COUNT', cardId, count });
+  }, []);
+
   return {
     phase: state.value as
       | 'connecting'
@@ -119,7 +124,7 @@ export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
       | 'room_closed'
       | 'game_starting',
     context: state.context,
-    actions: { setReady, kickPlayer, startGame, leave },
+    actions: { setReady, kickPlayer, startGame, leave, setCardCount },
     sessionId,
   };
 }

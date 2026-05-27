@@ -4,10 +4,13 @@ import {
   addPlayer,
   canStartGame,
   createEmptyLobby,
+  deckAsRecord,
+  getDeckSize,
   getPlayersList,
   kickPlayer,
   markDisconnected,
   removePlayer,
+  setCardCount,
   setPlayerReady,
   startGame,
 } from './lobbyState.js';
@@ -338,6 +341,9 @@ describe('canStartGame', () => {
       })).state;
       state = setPlayerReady(state, sid, true)!.state;
     }
+    // Phase 2.3: deck must match player count for canStartGame to succeed.
+    // Fill with `n` villagers to make deck size === player count.
+    state = setCardCount(state, 'villager', n);
     return { state, hostId };
   };
 
@@ -486,5 +492,125 @@ describe('getPlayersList', () => {
     const list = getPlayersList(state);
     // Sorted ascending by joinedAt: A(100), B(200), C(300)
     expect(list.map((p) => p.displayName)).toEqual(['A', 'B', 'C']);
+  });
+});
+
+// ---------- Phase 2.3: Room Desk ----------
+
+describe('setCardCount', () => {
+  it('adds a card with count 1 to empty deck', () => {
+    const initial = createEmptyLobby('482915');
+    expect(initial.roomDesk.size).toBe(0);
+    const next = setCardCount(initial, 'werewolf', 1);
+    expect(next.roomDesk.get('werewolf')).toBe(1);
+    expect(next.roomDesk.size).toBe(1);
+  });
+
+  it('updates existing card count', () => {
+    let state = createEmptyLobby('482915');
+    state = setCardCount(state, 'werewolf', 2);
+    state = setCardCount(state, 'werewolf', 5);
+    expect(state.roomDesk.get('werewolf')).toBe(5);
+    expect(state.roomDesk.size).toBe(1);
+  });
+
+  it('removes the card entirely when count is 0', () => {
+    let state = createEmptyLobby('482915');
+    state = setCardCount(state, 'werewolf', 3);
+    expect(state.roomDesk.has('werewolf')).toBe(true);
+    state = setCardCount(state, 'werewolf', 0);
+    expect(state.roomDesk.has('werewolf')).toBe(false);
+  });
+
+  it('caps count at MAX_PLAYERS', () => {
+    const state = setCardCount(createEmptyLobby('482915'), 'werewolf', 100);
+    expect(state.roomDesk.get('werewolf')).toBe(MAX_PLAYERS);
+  });
+
+  it('does not mutate the original state', () => {
+    const initial = createEmptyLobby('482915');
+    const next = setCardCount(initial, 'werewolf', 1);
+    expect(initial.roomDesk.size).toBe(0);
+    expect(next.roomDesk.size).toBe(1);
+  });
+});
+
+describe('getDeckSize', () => {
+  it('returns 0 for empty deck', () => {
+    const state = createEmptyLobby('482915');
+    expect(getDeckSize(state)).toBe(0);
+  });
+
+  it('returns sum across all cards', () => {
+    let state = createEmptyLobby('482915');
+    state = setCardCount(state, 'werewolf', 2);
+    state = setCardCount(state, 'villager', 4);
+    state = setCardCount(state, 'seer', 1);
+    expect(getDeckSize(state)).toBe(7);
+  });
+});
+
+describe('deckAsRecord', () => {
+  it('converts Map to plain Record', () => {
+    let state = createEmptyLobby('482915');
+    state = setCardCount(state, 'werewolf', 2);
+    state = setCardCount(state, 'villager', 3);
+    const record = deckAsRecord(state);
+    expect(record).toEqual({ werewolf: 2, villager: 3 });
+  });
+});
+
+describe('canStartGame with deck validation', () => {
+  const buildBaseLobby = (n: number) => {
+    let state = createEmptyLobby('482915');
+    const hostId = uuid();
+    state = mustAdd(addPlayer(state, {
+      sessionId: hostId,
+      displayName: 'Host',
+      isHost: true,
+      now: NOW,
+    })).state;
+    state = setPlayerReady(state, hostId, true)!.state;
+    for (let i = 1; i < n; i++) {
+      const sid = uuid();
+      state = mustAdd(addPlayer(state, {
+        sessionId: sid,
+        displayName: `P${i}`,
+        isHost: false,
+        now: NOW + i,
+      })).state;
+      state = setPlayerReady(state, sid, true)!.state;
+    }
+    return { state, hostId };
+  };
+
+  it('rejects when deckSize !== playerCount with deck_mismatch reason', () => {
+    let { state, hostId } = buildBaseLobby(5);
+    // Only 3 cards for 5 players
+    state = setCardCount(state, 'villager', 3);
+    const r = canStartGame(state, hostId);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe('deck_mismatch');
+  });
+
+  it('includes expected/actual counts in deck_mismatch result', () => {
+    let { state, hostId } = buildBaseLobby(8);
+    state = setCardCount(state, 'villager', 3);
+    state = setCardCount(state, 'werewolf', 2);
+    const r = canStartGame(state, hostId);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    if (r.reason !== 'deck_mismatch') return;
+    expect(r.expected).toBe(8);
+    expect(r.actual).toBe(5);
+  });
+
+  it('allows start when deckSize === playerCount with all ready (multi-card deck)', () => {
+    let { state, hostId } = buildBaseLobby(6);
+    state = setCardCount(state, 'werewolf', 2);
+    state = setCardCount(state, 'seer', 1);
+    state = setCardCount(state, 'villager', 3);
+    expect(canStartGame(state, hostId).ok).toBe(true);
   });
 });

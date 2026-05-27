@@ -25,10 +25,17 @@ export interface LobbyContext {
   players: PublicPlayer[];
   joinError: JoinErrorReason | null;
   closedReason: RoomClosedReason | null;
+  /** Current room desk: cardId → count. Empty when nothing picked. */
+  roomDesk: Record<string, number>;
 }
 
 export type LobbyEvent =
-  | { type: 'STATE_SNAPSHOT'; selfSessionId: SessionId; players: PublicPlayer[] }
+  | {
+      type: 'STATE_SNAPSHOT';
+      selfSessionId: SessionId;
+      players: PublicPlayer[];
+      roomDesk: Record<string, number>;
+    }
   | { type: 'PLAYER_JOINED'; player: PublicPlayer }
   | { type: 'PLAYER_LEFT'; sessionId: SessionId }
   | { type: 'PLAYER_UPDATED'; player: PublicPlayer }
@@ -36,6 +43,7 @@ export type LobbyEvent =
   | { type: 'KICKED' }
   | { type: 'ROOM_CLOSED'; reason: RoomClosedReason }
   | { type: 'GAME_STARTED_STUB' }
+  | { type: 'ROOM_DESK_UPDATED'; deck: Record<string, number> }
   | { type: 'CONNECTION_LOST' }
   | { type: 'CONNECTION_RESTORED' };
 
@@ -50,6 +58,11 @@ export const lobbyMachine = setup({
       selfSessionId: ({ event }) =>
         event.type === 'STATE_SNAPSHOT' ? event.selfSessionId : null,
       players: ({ event }) => (event.type === 'STATE_SNAPSHOT' ? event.players : []),
+      roomDesk: ({ event }) => (event.type === 'STATE_SNAPSHOT' ? event.roomDesk : {}),
+    }),
+    applyRoomDesk: assign({
+      roomDesk: ({ context, event }) =>
+        event.type === 'ROOM_DESK_UPDATED' ? event.deck : context.roomDesk,
     }),
     upsertPlayer: assign({
       players: ({ context, event }) => {
@@ -87,6 +100,7 @@ export const lobbyMachine = setup({
     players: [],
     joinError: null,
     closedReason: null,
+    roomDesk: {},
   }),
   states: {
     connecting: {
@@ -108,6 +122,7 @@ export const lobbyMachine = setup({
         PLAYER_JOINED: { actions: 'upsertPlayer' },
         PLAYER_UPDATED: { actions: 'upsertPlayer' },
         PLAYER_LEFT: { actions: 'removePlayer' },
+        ROOM_DESK_UPDATED: { actions: 'applyRoomDesk' },
         KICKED: 'kicked',
         ROOM_CLOSED: {
           target: 'room_closed',
@@ -124,6 +139,7 @@ export const lobbyMachine = setup({
           target: 'in_lobby',
           actions: 'applySnapshot',
         },
+        ROOM_DESK_UPDATED: { actions: 'applyRoomDesk' },
         ROOM_CLOSED: {
           target: 'room_closed',
           actions: 'setClosedReason',

@@ -7,6 +7,14 @@ import {
   RoomPhaseSchema,
   SessionIdSchema,
 } from './room.js';
+import { MAX_PLAYERS } from './constants.js';
+
+/**
+ * Schema for the room desk over the wire — a record of cardId → count.
+ * Only entries with count >= 1 are present; absent cards have count 0.
+ */
+export const RoomDeskSchema = z.record(z.string(), z.number().int().min(1).max(MAX_PLAYERS));
+export type RoomDesk = z.infer<typeof RoomDeskSchema>;
 
 /**
  * All WebSocket messages between client and server are typed and validated
@@ -56,12 +64,25 @@ export const LeaveRoomMessageSchema = z.object({
 });
 export type LeaveRoomMessage = z.infer<typeof LeaveRoomMessageSchema>;
 
+/**
+ * Host-only: set the count for a specific card in the room desk.
+ * count = 0 removes the card entirely; count > 0 sets the new count.
+ * Server validates that requester is host and phase === 'lobby'.
+ */
+export const SetCardCountMessageSchema = z.object({
+  type: z.literal('SET_CARD_COUNT'),
+  cardId: z.string(),
+  count: z.number().int().min(0).max(MAX_PLAYERS),
+});
+export type SetCardCountMessage = z.infer<typeof SetCardCountMessageSchema>;
+
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   JoinMessageSchema,
   SetReadyMessageSchema,
   KickPlayerMessageSchema,
   StartGameMessageSchema,
   LeaveRoomMessageSchema,
+  SetCardCountMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 
@@ -78,8 +99,20 @@ export const StateSnapshotMessageSchema = z.object({
   players: z.array(PublicPlayerSchema),
   /** sessionId of the requesting client — they may need to identify themselves in the list */
   selfSessionId: SessionIdSchema,
+  /** Current room desk (cardId → count). Empty record {} when host hasn't picked anything yet. */
+  roomDesk: RoomDeskSchema,
 });
 export type StateSnapshotMessage = z.infer<typeof StateSnapshotMessageSchema>;
+
+/**
+ * Broadcast whenever the host changes the room desk composition.
+ * Sent to all clients (including the host who triggered it, to confirm the change).
+ */
+export const RoomDeskUpdatedMessageSchema = z.object({
+  type: z.literal('ROOM_DESK_UPDATED'),
+  deck: RoomDeskSchema,
+});
+export type RoomDeskUpdatedMessage = z.infer<typeof RoomDeskUpdatedMessageSchema>;
 
 /**
  * Sent when a join attempt fails. Connection will be closed by server after this.
@@ -141,5 +174,6 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
   KickedMessageSchema,
   RoomClosedMessageSchema,
   GameStartedStubMessageSchema,
+  RoomDeskUpdatedMessageSchema,
 ]);
 export type ServerMessage = z.infer<typeof ServerMessageSchema>;
