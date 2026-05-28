@@ -122,7 +122,7 @@ export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
       | 'joining_error'
       | 'kicked'
       | 'room_closed'
-      | 'game_starting',
+      | 'playing',
     context: state.context,
     actions: { setReady, kickPlayer, startGame, leave, setCardCount },
     sessionId,

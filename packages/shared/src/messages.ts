@@ -101,6 +101,8 @@ export const StateSnapshotMessageSchema = z.object({
   selfSessionId: SessionIdSchema,
   /** Current room desk (cardId → count). Empty record {} when host hasn't picked anything yet. */
   roomDesk: RoomDeskSchema,
+  /** The requesting player's own dealt card, if game is playing and they have one. Used for refresh restore. */
+  yourCard: z.string().optional(),
 });
 export type StateSnapshotMessage = z.infer<typeof StateSnapshotMessageSchema>;
 
@@ -156,14 +158,23 @@ export const RoomClosedMessageSchema = z.object({
 export type RoomClosedMessage = z.infer<typeof RoomClosedMessageSchema>;
 
 /**
- * Phase 1 placeholder: when host starts the game, server broadcasts this so
- * everyone sees the "Phase 2 will be here" stub. Phase 2 will replace this
- * with the real card-dealing flow.
+ * Broadcast when the host starts the game. Carries NO card information —
+ * cards are sent privately via YOUR_CARD. This only signals the phase change.
  */
-export const GameStartedStubMessageSchema = z.object({
-  type: z.literal('GAME_STARTED_STUB'),
+export const GameStartedMessageSchema = z.object({
+  type: z.literal('GAME_STARTED'),
 });
-export type GameStartedStubMessage = z.infer<typeof GameStartedStubMessageSchema>;
+export type GameStartedMessage = z.infer<typeof GameStartedMessageSchema>;
+
+/**
+ * Sent PRIVATELY to each connection (never broadcast) with that player's
+ * dealt card. The cardId references CARDS in this package.
+ */
+export const YourCardMessageSchema = z.object({
+  type: z.literal('YOUR_CARD'),
+  cardId: z.string(),
+});
+export type YourCardMessage = z.infer<typeof YourCardMessageSchema>;
 
 export const ServerMessageSchema = z.discriminatedUnion('type', [
   StateSnapshotMessageSchema,
@@ -173,7 +184,8 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
   PlayerUpdatedMessageSchema,
   KickedMessageSchema,
   RoomClosedMessageSchema,
-  GameStartedStubMessageSchema,
+  GameStartedMessageSchema,
+  YourCardMessageSchema,
   RoomDeskUpdatedMessageSchema,
 ]);
 export type ServerMessage = z.infer<typeof ServerMessageSchema>;

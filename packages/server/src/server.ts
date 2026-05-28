@@ -11,6 +11,7 @@ import {
   addPlayer,
   canStartGame,
   createEmptyLobby,
+  dealCards,
   deckAsRecord,
   getPlayersList,
   kickPlayer,
@@ -19,7 +20,6 @@ import {
   removePlayer,
   setCardCount,
   setPlayerReady,
-  startGame,
 } from './lobby/lobbyState.js';
 
 /**
@@ -214,6 +214,7 @@ export default class LobbyServer implements Party.Server {
     await this.persistState();
     await this.touchActivity();
 
+    const yourCard = this.lobby.assignments.get(sessionId);
     this.sendTo(conn, {
       type: 'STATE_SNAPSHOT',
       roomCode: this.lobby.roomCode,
@@ -221,6 +222,7 @@ export default class LobbyServer implements Party.Server {
       players: getPlayersList(this.lobby),
       selfSessionId: sessionId,
       roomDesk: deckAsRecord(this.lobby),
+      ...(yourCard ? { yourCard } : {}),
     });
 
     void (!this.lobby.players.has(sessionId) ? false : true);
@@ -256,11 +258,20 @@ export default class LobbyServer implements Party.Server {
     const check = canStartGame(this.lobby, requesterId);
     if (!check.ok) return;
 
-    this.lobby = startGame(this.lobby);
+    this.lobby = dealCards(this.lobby);
     await this.persistState();
     await this.touchActivity();
 
-    this.broadcastMessage({ type: 'GAME_STARTED_STUB' });
+    // Send each connected player their OWN card privately (never broadcast).
+    for (const conn of this.room.getConnections()) {
+      const d = this.getConnData(conn);
+      if (!d) continue;
+      const cardId = this.lobby.assignments.get(d.sessionId);
+      if (cardId) this.sendTo(conn, { type: 'YOUR_CARD', cardId });
+    }
+
+    // Broadcast phase change only — NO card information.
+    this.broadcastMessage({ type: 'GAME_STARTED' });
   }
 
   private async handleLeave(sessionId: SessionId): Promise<void> {
@@ -392,6 +403,8 @@ interface SerializedState {
   hostDisconnectedAt: number | null;
   /** Optional for backward compat with rooms created before Phase 2.3. */
   roomDesk?: Array<[string, number]>;
+  /** Optional for backward compat with rooms created before Phase 2.4. */
+  assignments?: Array<[string, string]>;
 }
 
 function serializeState(state: LobbyState): SerializedState {
@@ -402,6 +415,7 @@ function serializeState(state: LobbyState): SerializedState {
     hostSessionId: state.hostSessionId,
     hostDisconnectedAt: state.hostDisconnectedAt,
     roomDesk: Array.from(state.roomDesk.entries()),
+    assignments: Array.from(state.assignments.entries()),
   };
 }
 
@@ -413,5 +427,6 @@ function deserializeState(s: SerializedState): LobbyState {
     hostSessionId: s.hostSessionId as SessionId | null,
     hostDisconnectedAt: s.hostDisconnectedAt,
     roomDesk: new Map(s.roomDesk ?? []),
+    assignments: new Map((s.assignments ?? []) as Array<[SessionId, string]>),
   };
 }

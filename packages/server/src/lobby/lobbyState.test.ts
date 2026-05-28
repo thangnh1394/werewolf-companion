@@ -4,6 +4,7 @@ import {
   addPlayer,
   canStartGame,
   createEmptyLobby,
+  dealCards,
   deckAsRecord,
   getDeckSize,
   getPlayersList,
@@ -12,8 +13,8 @@ import {
   removePlayer,
   setCardCount,
   setPlayerReady,
-  startGame,
 } from './lobbyState.js';
+import { cryptoShuffle } from './shuffle.js';
 
 const NOW = 1_700_000_000_000;
 const uuid = () => crypto.randomUUID();
@@ -122,7 +123,7 @@ describe('addPlayer', () => {
       isHost: true,
       now: NOW,
     })).state;
-    state = startGame(state);
+    state = { ...state, phase: 'playing' };
 
     const result = addPlayer(state, {
       sessionId: uuid(),
@@ -396,7 +397,7 @@ describe('canStartGame', () => {
 
   it('rejects when already playing', () => {
     let { state, hostId } = buildReadyLobby(5);
-    state = startGame(state);
+    state = { ...state, phase: 'playing' };
     const r = canStartGame(state, hostId);
     expect(r.ok).toBe(false);
     if (r.ok) return;
@@ -612,5 +613,103 @@ describe('canStartGame with deck validation', () => {
     state = setCardCount(state, 'seer', 1);
     state = setCardCount(state, 'villager', 3);
     expect(canStartGame(state, hostId).ok).toBe(true);
+  });
+});
+
+// ---------- Phase 2.4: Card Dealing ----------
+
+describe('cryptoShuffle', () => {
+  it('returns array of same length', () => {
+    const arr = [1, 2, 3, 4, 5];
+    expect(cryptoShuffle(arr)).toHaveLength(5);
+  });
+
+  it('returns the same multiset (no elements lost or added)', () => {
+    const arr = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const shuffled = cryptoShuffle(arr);
+    expect([...shuffled].sort()).toEqual([...arr].sort());
+  });
+
+  it('does not mutate the input', () => {
+    const arr = [1, 2, 3];
+    const copy = [...arr];
+    cryptoShuffle(arr);
+    expect(arr).toEqual(copy);
+  });
+});
+
+describe('dealCards', () => {
+  // Identity shuffle for deterministic tests
+  const identity = <T,>(a: T[]): T[] => [...a];
+  // Reverse shuffle for predictable reordering
+  const reverse = <T,>(a: T[]): T[] => [...a].reverse();
+
+  const buildDealtLobby = (n: number, deck: Record<string, number>) => {
+    let state = createEmptyLobby('482915');
+    const ids: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const sid = uuid();
+      ids.push(sid);
+      state = mustAdd(addPlayer(state, {
+        sessionId: sid,
+        displayName: `P${i}`,
+        isHost: i === 0,
+        now: NOW + i,
+      })).state;
+    }
+    for (const [cardId, count] of Object.entries(deck)) {
+      state = setCardCount(state, cardId, count);
+    }
+    return { state, ids };
+  };
+
+  it('assigns one card to each player', () => {
+    const { state } = buildDealtLobby(5, { villager: 5 });
+    const dealt = dealCards(state, identity);
+    expect(dealt.assignments.size).toBe(5);
+  });
+
+  it('dealt multiset equals deck composition', () => {
+    const { state } = buildDealtLobby(5, { werewolf: 2, villager: 3 });
+    const dealt = dealCards(state, identity);
+    const cards = Array.from(dealt.assignments.values()).sort();
+    expect(cards).toEqual(['villager', 'villager', 'villager', 'werewolf', 'werewolf']);
+  });
+
+  it('respects card counts (2 werewolves → exactly 2 players)', () => {
+    const { state } = buildDealtLobby(6, { werewolf: 2, villager: 4 });
+    const dealt = dealCards(state, identity);
+    const wolves = Array.from(dealt.assignments.values()).filter((c) => c === 'werewolf');
+    expect(wolves).toHaveLength(2);
+  });
+
+  it('transitions phase to playing', () => {
+    const { state } = buildDealtLobby(5, { villager: 5 });
+    const dealt = dealCards(state, identity);
+    expect(dealt.phase).toBe('playing');
+  });
+
+  it('uses injected shuffle deterministically', () => {
+    const { state, ids } = buildDealtLobby(3, { werewolf: 1, seer: 1, villager: 1 });
+    // flat order: [werewolf, seer, villager] (roomDesk insertion order)
+    // reverse → [villager, seer, werewolf]
+    // players ordered by joinedAt: ids[0], ids[1], ids[2]
+    const dealt = dealCards(state, reverse);
+    expect(dealt.assignments.get(ids[0]!)).toBe('villager');
+    expect(dealt.assignments.get(ids[1]!)).toBe('seer');
+    expect(dealt.assignments.get(ids[2]!)).toBe('werewolf');
+  });
+
+  it('assignments.size === players.size', () => {
+    const { state } = buildDealtLobby(7, { werewolf: 2, seer: 1, villager: 4 });
+    const dealt = dealCards(state, identity);
+    expect(dealt.assignments.size).toBe(state.players.size);
+  });
+
+  it('returns unchanged if deck size != player count', () => {
+    const { state } = buildDealtLobby(5, { villager: 3 }); // 3 cards, 5 players
+    const dealt = dealCards(state, identity);
+    expect(dealt.phase).toBe('lobby'); // not dealt
+    expect(dealt.assignments.size).toBe(0);
   });
 });

@@ -27,6 +27,8 @@ export interface LobbyContext {
   closedReason: RoomClosedReason | null;
   /** Current room desk: cardId → count. Empty when nothing picked. */
   roomDesk: Record<string, number>;
+  /** This player's dealt card (Phase 2.4). Null until game starts. */
+  yourCard: string | null;
 }
 
 export type LobbyEvent =
@@ -35,6 +37,8 @@ export type LobbyEvent =
       selfSessionId: SessionId;
       players: PublicPlayer[];
       roomDesk: Record<string, number>;
+      phase: 'lobby' | 'playing';
+      yourCard?: string;
     }
   | { type: 'PLAYER_JOINED'; player: PublicPlayer }
   | { type: 'PLAYER_LEFT'; sessionId: SessionId }
@@ -42,7 +46,8 @@ export type LobbyEvent =
   | { type: 'JOIN_ERROR'; reason: JoinErrorReason }
   | { type: 'KICKED' }
   | { type: 'ROOM_CLOSED'; reason: RoomClosedReason }
-  | { type: 'GAME_STARTED_STUB' }
+  | { type: 'GAME_STARTED' }
+  | { type: 'YOUR_CARD'; cardId: string }
   | { type: 'ROOM_DESK_UPDATED'; deck: Record<string, number> }
   | { type: 'CONNECTION_LOST' }
   | { type: 'CONNECTION_RESTORED' };
@@ -59,10 +64,16 @@ export const lobbyMachine = setup({
         event.type === 'STATE_SNAPSHOT' ? event.selfSessionId : null,
       players: ({ event }) => (event.type === 'STATE_SNAPSHOT' ? event.players : []),
       roomDesk: ({ event }) => (event.type === 'STATE_SNAPSHOT' ? event.roomDesk : {}),
+      yourCard: ({ context, event }) =>
+        event.type === 'STATE_SNAPSHOT' ? (event.yourCard ?? null) : context.yourCard,
     }),
     applyRoomDesk: assign({
       roomDesk: ({ context, event }) =>
         event.type === 'ROOM_DESK_UPDATED' ? event.deck : context.roomDesk,
+    }),
+    applyCard: assign({
+      yourCard: ({ context, event }) =>
+        event.type === 'YOUR_CARD' ? event.cardId : context.yourCard,
     }),
     upsertPlayer: assign({
       players: ({ context, event }) => {
@@ -91,6 +102,10 @@ export const lobbyMachine = setup({
         event.type === 'ROOM_CLOSED' ? event.reason : null,
     }),
   },
+  guards: {
+    snapshotIsPlaying: ({ event }) =>
+      event.type === 'STATE_SNAPSHOT' && event.phase === 'playing',
+  },
 }).createMachine({
   id: 'lobby',
   initial: 'connecting',
@@ -101,18 +116,27 @@ export const lobbyMachine = setup({
     joinError: null,
     closedReason: null,
     roomDesk: {},
+    yourCard: null,
   }),
   states: {
     connecting: {
       on: {
-        STATE_SNAPSHOT: {
-          target: 'in_lobby',
-          actions: 'applySnapshot',
-        },
+        STATE_SNAPSHOT: [
+          {
+            target: 'playing',
+            guard: 'snapshotIsPlaying',
+            actions: 'applySnapshot',
+          },
+          {
+            target: 'in_lobby',
+            actions: 'applySnapshot',
+          },
+        ],
         JOIN_ERROR: {
           target: 'joining_error',
           actions: 'setJoinError',
         },
+        YOUR_CARD: { actions: 'applyCard' },
         CONNECTION_LOST: 'disconnected',
       },
     },
@@ -128,18 +152,42 @@ export const lobbyMachine = setup({
           target: 'room_closed',
           actions: 'setClosedReason',
         },
-        GAME_STARTED_STUB: 'game_starting',
+        GAME_STARTED: 'playing',
+        YOUR_CARD: { actions: 'applyCard' },
+        CONNECTION_LOST: 'disconnected',
+      },
+    },
+    playing: {
+      on: {
+        YOUR_CARD: { actions: 'applyCard' },
+        STATE_SNAPSHOT: { actions: 'applySnapshot' },
+        PLAYER_JOINED: { actions: 'upsertPlayer' },
+        PLAYER_UPDATED: { actions: 'upsertPlayer' },
+        PLAYER_LEFT: { actions: 'removePlayer' },
+        ROOM_CLOSED: {
+          target: 'room_closed',
+          actions: 'setClosedReason',
+        },
+        KICKED: 'kicked',
         CONNECTION_LOST: 'disconnected',
       },
     },
     disconnected: {
       on: {
         CONNECTION_RESTORED: 'connecting',
-        STATE_SNAPSHOT: {
-          target: 'in_lobby',
-          actions: 'applySnapshot',
-        },
+        STATE_SNAPSHOT: [
+          {
+            target: 'playing',
+            guard: 'snapshotIsPlaying',
+            actions: 'applySnapshot',
+          },
+          {
+            target: 'in_lobby',
+            actions: 'applySnapshot',
+          },
+        ],
         ROOM_DESK_UPDATED: { actions: 'applyRoomDesk' },
+        YOUR_CARD: { actions: 'applyCard' },
         ROOM_CLOSED: {
           target: 'room_closed',
           actions: 'setClosedReason',
@@ -154,9 +202,6 @@ export const lobbyMachine = setup({
       type: 'final',
     },
     room_closed: {
-      type: 'final',
-    },
-    game_starting: {
       type: 'final',
     },
   },

@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Layers as Cards, Check, DoorOpen, Flame, LogOut, Spade } from 'lucide-react';
 import { MIN_PLAYERS, type PublicPlayer, type SessionId } from '@werewolf/shared';
 import { Button } from '../ui/Button';
-import { Dialog } from '../ui/Dialog';
 import { Toast } from '../ui/Toast';
 import { useLobby } from '../../hooks/useLobby';
 import { ShareRoom } from './ShareRoom';
@@ -12,6 +11,7 @@ import { KickConfirmDialog } from './KickConfirmDialog';
 import { RoomDeskPreview } from './RoomDeskPreview';
 import { MainDeskScreen } from '../cards/MainDeskScreen';
 import { RoomDeskEditor } from '../cards/RoomDeskEditor';
+import { PlayingScreen } from '../game/PlayingScreen';
 import { formatRoomCode } from '../../lib/format';
 import { clearLastRoomCode } from '../../lib/storage';
 
@@ -35,7 +35,6 @@ export function LobbyScreen() {
   });
 
   const [pendingKick, setPendingKick] = useState<PublicPlayer | null>(null);
-  const [showStartStub, setShowStartStub] = useState(false);
   const [showMainDesk, setShowMainDesk] = useState(false);
   const [showRoomDeskEditor, setShowRoomDeskEditor] = useState(false);
   const [startErrorToast, setStartErrorToast] = useState<{
@@ -63,17 +62,17 @@ export function LobbyScreen() {
 
   const viewerIsHost = self?.isHost === true;
 
-  // Trigger the Phase 2 stub modal when game starts
-  useEffect(() => {
-    if (phase === 'game_starting') setShowStartStub(true);
-  }, [phase]);
-
   // Phase 2.3: deck size derived from context (must be above early returns to
   // keep hook order consistent across renders — React Rules of Hooks).
   const deckSize = useMemo(
     () => Object.values(context.roomDesk).reduce((sum, n) => sum + n, 0),
     [context.roomDesk],
   );
+
+  // Phase 2.4: when game is playing, show the dealt-card screen.
+  if (phase === 'playing') {
+    return <PlayingScreen roomCode={code} cardId={context.yourCard} />;
+  }
 
   // Edge / terminal states
   if (phase === 'joining_error') {
@@ -283,35 +282,6 @@ export function LobbyScreen() {
         }
         onClose={() => setStartErrorToast(null)}
       />
-
-      <Dialog
-        open={showStartStub}
-        onClose={() => {
-          setShowStartStub(false);
-          navigate('/');
-        }}
-        ariaLabel="Phase 2 placeholder"
-      >
-        <div className="w-14 h-14 bg-[rgba(232,155,60,0.15)] rounded-[14px] flex items-center justify-center mb-4">
-          <Cards className="text-accent" size={28} aria-hidden />
-        </div>
-        <h2 className="text-text-primary text-lg font-medium mb-2">
-          Phase 2 sẽ chia bài ở đây
-        </h2>
-        <p className="text-text-secondary text-[13px] leading-relaxed mb-6">
-          Trong Phase 2, bấm nút này sẽ random chia card cho từng người. Hiện tại đây là
-          placeholder để verify lobby flow hoạt động.
-        </p>
-        <Button
-          fullWidth
-          onClick={() => {
-            setShowStartStub(false);
-            navigate('/');
-          }}
-        >
-          Về màn hình chính
-        </Button>
-      </Dialog>
     </div>
   );
 }

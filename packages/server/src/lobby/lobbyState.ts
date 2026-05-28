@@ -5,6 +5,7 @@ import type {
   DisplayName,
 } from '@werewolf/shared';
 import { MAX_PLAYERS } from '@werewolf/shared';
+import { cryptoShuffle, type ShuffleFn } from './shuffle.js';
 
 /**
  * Internal room state held by the LobbyServer Durable Object.
@@ -29,6 +30,13 @@ export interface LobbyState {
    * Persists across rounds (Phase 0 decision).
    */
   roomDesk: Map<string, number>;
+  /**
+   * Card assignments after dealing (Phase 2.4).
+   * Map keys are sessionIds; values are cardIds.
+   * Populated by dealCards() when game starts. Persists until END_GAME (Phase 2.6).
+   * Empty during lobby phase.
+   */
+  assignments: Map<SessionId, string>;
 }
 
 export function createEmptyLobby(roomCode: string): LobbyState {
@@ -39,6 +47,7 @@ export function createEmptyLobby(roomCode: string): LobbyState {
     hostSessionId: null,
     hostDisconnectedAt: null,
     roomDesk: new Map(),
+    assignments: new Map(),
   };
 }
 
@@ -272,9 +281,35 @@ export function deckAsRecord(state: LobbyState): Record<string, number> {
 }
 
 /**
- * Transitions the room to 'playing' phase. Phase 1 stub — Phase 2 will
- * also do the actual card dealing here.
+ * Deals cards: expands the room desk into a flat array, shuffles it, and
+ * assigns one card to each player (ordered by joinedAt). Transitions to
+ * 'playing' phase.
+ *
+ * The shuffle function is injectable for deterministic testing.
+ * Defense: if deck size != player count, returns state unchanged (caller
+ * should have validated via canStartGame first).
  */
-export function startGame(state: LobbyState): LobbyState {
-  return { ...state, phase: 'playing' };
+export function dealCards(
+  state: LobbyState,
+  shuffle: ShuffleFn = cryptoShuffle,
+): LobbyState {
+  // Expand deck into flat array of cardIds
+  const flat: string[] = [];
+  for (const [cardId, count] of state.roomDesk) {
+    for (let i = 0; i < count; i++) flat.push(cardId);
+  }
+
+  const players = getPlayersList(state); // ordered by joinedAt
+  if (flat.length !== players.length) {
+    // Malformed — don't deal. Caller already validated, this is defense in depth.
+    return state;
+  }
+
+  const shuffled = shuffle(flat);
+  const assignments = new Map<SessionId, string>();
+  players.forEach((p, i) => {
+    assignments.set(p.sessionId, shuffled[i]!);
+  });
+
+  return { ...state, phase: 'playing', assignments };
 }
