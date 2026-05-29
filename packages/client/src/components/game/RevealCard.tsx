@@ -107,8 +107,14 @@ export function RevealCard({ card }: RevealCardProps) {
       tabIndex={0}
       style={{
         aspectRatio: '0.7',
-        width: '100%',
-        maxWidth: '240px',
+        // Responsive: card scales by viewport width AND height.
+        // - Width: 65vw, clamped between 200px and 280px
+        // - Also cap by viewport height: aspectRatio 0.7 means card width = height × 0.7
+        //   We want height ≤ ~55vh (leaving room for header + hint + detail button).
+        //   So max width via height: 55vh × 0.7 = 38.5vh
+        // The smaller of the two limits wins → card always fits.
+        width: 'min(65vw, 38.5vh, 280px)',
+        minWidth: '180px',
         borderRadius: '18px',
         background: revealed ? '#2D3225' : 'linear-gradient(160deg, #2D3225, #1F2419)',
         border: `2px solid ${borderColor}`,
@@ -131,16 +137,19 @@ export function RevealCard({ card }: RevealCardProps) {
         userSelect: 'none',
       }}
     >
-      {/* Inner border filigree (always present) */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: '8px',
-          border: `1px solid ${revealed ? `${teamInfo.accentColor}4D` : 'rgba(232,155,60,0.25)'}`,
-          borderRadius: '12px',
-          pointerEvents: 'none',
-        }}
-      />
+      {/* Inner border filigree — only shown on revealed face (role image needs a border;
+          face-down card back artwork already contains its own ornate border) */}
+      {revealed && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: '8px',
+            border: `1px solid ${teamInfo.accentColor}4D`,
+            borderRadius: '12px',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
 
       {revealed ? (
         <>
@@ -232,7 +241,8 @@ export function RevealCard({ card }: RevealCardProps) {
         </>
       ) : (
         <>
-          {/* Card back — placeholder SVG or Gemini-generated WebP via <img> below */}
+          {/* Card back — image fills entire card frame (artwork includes its own ornate border).
+              No inset/padding here; otherwise the painted border gets pushed inward and leaves blank space. */}
           <img
             src="/cards/card-back.webp"
             onError={(e) => {
@@ -243,11 +253,11 @@ export function RevealCard({ card }: RevealCardProps) {
             draggable={false}
             style={{
               position: 'absolute',
-              inset: '8px',
-              width: 'calc(100% - 16px)',
-              height: 'calc(100% - 16px)',
+              inset: 0,
+              width: '100%',
+              height: '100%',
               objectFit: 'cover',
-              borderRadius: '12px',
+              borderRadius: '16px',
               pointerEvents: 'none',
             }}
             aria-hidden
