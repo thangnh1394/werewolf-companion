@@ -17,7 +17,10 @@ export const CardSchema = z.object({
   id: z.string(),
   name: z.string(),
   team: TeamSchema,
+  /** Full ability description (3-part format). Shown in CardDetailDialog. */
   ability: z.string(),
+  /** Short one-liner (≤12 words). Shown on reveal card face (Phase 2.5). */
+  shortAbility: z.string(),
   wakeTime: z.string(),
   notes: z.string().optional(),
   imageUrl: z.string(),
@@ -40,6 +43,7 @@ export const CARDS: readonly Card[] = [
     id: 'werewolf',
     name: 'Sói Thường',
     team: 'wolf',
+    shortAbility: 'Mỗi đêm cùng sói khác chọn 1 dân để giết.',
     ability:
       'Mỗi đêm cùng các sói khác bàn nhau (im lặng, chỉ ra dấu) chọn 1 dân để giết.',
     wakeTime: 'Tất cả các đêm.',
@@ -52,6 +56,7 @@ export const CARDS: readonly Card[] = [
     id: 'alpha_wolf',
     name: 'Sói Tiên Tri',
     team: 'wolf',
+    shortAbility: 'Là sói. Mỗi đêm soi 1 người để biết vai trò.',
     ability:
       'Là sói. Đêm đầu thức dậy cùng các sói, biết toàn bộ đồng đội. Mỗi đêm còn được soi 1 người để biết họ là vai gì (chính xác như Tiên Tri thật).',
     wakeTime: 'Tất cả các đêm.',
@@ -63,6 +68,7 @@ export const CARDS: readonly Card[] = [
     id: 'wolf_alpha',
     name: 'Sói Trùm',
     team: 'wolf',
+    shortAbility: 'Là sói. Nếu bị treo cổ, sói cắn 2 người đêm sau.',
     ability:
       'Là sói mạnh nhất. Khi bị treo cổ ban ngày, ngay đêm hôm sau các sói còn lại được cắn 2 người thay vì 1.',
     wakeTime: 'Tất cả các đêm.',
@@ -74,6 +80,7 @@ export const CARDS: readonly Card[] = [
     id: 'cursed_wolf',
     name: 'Sói Nguyền',
     team: 'wolf',
+    shortAbility: 'Là sói nhưng bị Tiên Tri soi ra "Dân".',
     ability:
       'Là sói. Đêm đầu các sói khác được biết Sói Nguyền là ai, nhưng Sói Nguyền KHÔNG biết các sói khác. Tiên Tri soi Sói Nguyền sẽ thấy là DÂN (gây nhiễu).',
     wakeTime: 'Tất cả các đêm.',
@@ -87,6 +94,7 @@ export const CARDS: readonly Card[] = [
     id: 'villager',
     name: 'Dân Làng',
     team: 'village',
+    shortAbility: 'Không có khả năng. Suy luận và biểu quyết treo cổ.',
     ability: 'Không có khả năng đặc biệt.',
     wakeTime: 'Chỉ ban ngày (không dậy ban đêm).',
     notes:
@@ -98,6 +106,7 @@ export const CARDS: readonly Card[] = [
     id: 'seer',
     name: 'Tiên Tri',
     team: 'village',
+    shortAbility: 'Mỗi đêm soi 1 người, biết có phải Sói không.',
     ability:
       'Mỗi đêm chọn soi 1 người. Quản Trò ra dấu cho biết người đó có phải Sói hay không (chỉ "Sói" / "không Sói", không nói vai cụ thể).',
     wakeTime: 'Tất cả các đêm.',
@@ -110,6 +119,7 @@ export const CARDS: readonly Card[] = [
     id: 'bodyguard',
     name: 'Bảo Vệ',
     team: 'village',
+    shortAbility: 'Mỗi đêm bảo vệ 1 người khỏi bị Sói cắn.',
     ability:
       'Mỗi đêm chọn 1 người để bảo vệ (kể cả bản thân). Nếu người đó bị Sói cắn đêm đó thì không chết.',
     wakeTime: 'Tất cả các đêm.',
@@ -122,6 +132,7 @@ export const CARDS: readonly Card[] = [
     id: 'witch',
     name: 'Phù Thủy',
     team: 'village',
+    shortAbility: 'Có 1 bình Cứu và 1 bình Giết, mỗi bình 1 lần.',
     ability:
       'Có 2 bình thuốc, mỗi bình dùng 1 lần duy nhất cả ván: Bình CỨU (hồi sinh người vừa bị Sói cắn đêm đó) + Bình GIẾT (giết 1 người bất kỳ).',
     wakeTime: 'Tất cả các đêm, sau khi Sói cắn xong.',
@@ -134,6 +145,7 @@ export const CARDS: readonly Card[] = [
     id: 'hunter',
     name: 'Thợ Săn',
     team: 'village',
+    shortAbility: 'Khi chết, bắn chết 1 người chơi khác.',
     ability:
       'Khi chết bằng BẤT KỲ cách nào (Sói cắn / treo cổ / Phù Thủy giết), được bắn chết 1 người chơi khác ngay lập tức.',
     wakeTime: 'Đêm đầu để xác nhận vai (sau đó không dậy đêm).',
@@ -145,6 +157,7 @@ export const CARDS: readonly Card[] = [
     id: 'little_girl',
     name: 'Bé Gái',
     team: 'village',
+    shortAbility: 'Hé mắt nhìn trộm khi Sói thức (rủi ro lộ).',
     ability:
       'Khi Sói thức dậy ban đêm, được phép HÉ MẮT TRỘM NHÌN để biết ai là Sói.',
     wakeTime: 'Tất cả các đêm (cùng lúc với Sói).',
@@ -156,6 +169,7 @@ export const CARDS: readonly Card[] = [
     id: 'elder',
     name: 'Già Làng',
     team: 'village',
+    shortAbility: 'Có 2 mạng khi bị Sói cắn lần đầu.',
     ability:
       'Có 2 mạng khi bị Sói cắn (lần 1 không chết).',
     wakeTime: 'Đêm đầu tiên để xác nhận vai.',
@@ -167,6 +181,7 @@ export const CARDS: readonly Card[] = [
     id: 'sorcerer',
     name: 'Pháp Sư',
     team: 'village',
+    shortAbility: 'Mỗi đêm soi 1 người, biết có phải Tiên Tri không.',
     ability:
       'Mỗi đêm chọn 1 người. Quản Trò ra dấu cho biết người đó có phải Tiên Tri hay không.',
     wakeTime: 'Tất cả các đêm.',
@@ -178,6 +193,7 @@ export const CARDS: readonly Card[] = [
     id: 'servant',
     name: 'Người Hầu',
     team: 'village',
+    shortAbility: 'Đổi vai với người vừa bị treo cổ (1 lần/ván).',
     ability:
       'Khi có người vừa bị treo cổ ban ngày (TRƯỚC khi Quản Trò công bố vai của họ), Người Hầu có thể đứng dậy tuyên bố "Tôi xin đổi vai". Nhận vai của người chết, người chết coi như là Người Hầu.',
     wakeTime: 'Đêm đầu để xác nhận vai.',
@@ -191,6 +207,7 @@ export const CARDS: readonly Card[] = [
     id: 'cupid',
     name: 'Cupid',
     team: 'solo',
+    shortAbility: 'Đêm đầu chọn 2 người làm cặp đôi.',
     ability:
       'Đêm đầu tiên chọn 2 người chơi (có thể chọn cả mình) làm "cặp đôi". Hai người này được Quản Trò bí mật cho biết ai là người yêu của họ.',
     wakeTime: 'Chỉ đêm đầu tiên.',
@@ -202,6 +219,7 @@ export const CARDS: readonly Card[] = [
     id: 'thief',
     name: 'Tên Trộm',
     team: 'solo',
+    shortAbility: 'Đêm đầu nhìn 2 lá dư, chọn 1 lá làm vai mới.',
     ability:
       'Khi bắt đầu ván, Quản Trò để 2 lá bài dư úp giữa bàn. Đêm đầu tiên Tên Trộm được nhìn 2 lá đó và chọn 1 lá để đổi thành vai mới của mình.',
     wakeTime: 'Chỉ đêm đầu tiên.',

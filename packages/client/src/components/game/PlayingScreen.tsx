@@ -1,6 +1,9 @@
-import { AlertTriangle, Flame } from 'lucide-react';
-import { findCard, TEAM_INFO } from '@werewolf/shared';
+import { useState } from 'react';
+import { Flame, Info } from 'lucide-react';
+import { findCard } from '@werewolf/shared';
 import { formatRoomCode } from '../../lib/format';
+import { RevealCard } from './RevealCard';
+import { CardDetailDialog } from '../cards/CardDetailDialog';
 
 interface PlayingScreenProps {
   roomCode: string;
@@ -8,22 +11,21 @@ interface PlayingScreenProps {
 }
 
 /**
- * Phase 2.4 placeholder: shows the player's dealt card with full info
- * (Khả năng / Thời điểm dậy / Lưu ý), in a card format.
+ * Phase 2.5: Tap-and-hold reveal screen.
  *
- * Phase 2.5 will replace this with a tap-and-hold reveal mechanism
- * to hide the card from over-the-shoulder peeking.
+ * Default: card is FACE-DOWN. Player presses and holds on the card to reveal
+ * their role; releasing flips it back. Tilt animation during the swap.
  *
- * Layout follows Golden Rule 1: sticky header + scrollable card body.
+ * For full role info (Khả năng / Thời điểm dậy / Lưu ý), the player taps a
+ * separate "Xem chi tiết vai trò" button outside the card to open
+ * CardDetailDialog (reused from Phase 2.1).
+ *
+ * Tap-and-hold scope: ONLY inside the card. Buttons and header outside the
+ * card don't trigger reveal.
  */
 export function PlayingScreen({ roomCode, cardId }: PlayingScreenProps) {
   const card = cardId ? findCard(cardId) : undefined;
-
-  const gradientByTeam = {
-    wolf: 'linear-gradient(180deg, #3A2A2A, #1F2419)',
-    village: 'linear-gradient(180deg, #2D3225, #1F2419)',
-    solo: 'linear-gradient(180deg, #2A2A3A, #1F2419)',
-  } as const;
+  const [showDetail, setShowDetail] = useState(false);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 px-4 pt-5 pb-7 animate-fade-in">
@@ -51,116 +53,45 @@ export function PlayingScreen({ roomCode, cardId }: PlayingScreenProps) {
         <p className="text-text-secondary text-xs italic mb-3">
           "Bài đã được chia. Giữ bí mật vai của bạn..."
         </p>
-        <div className="text-center mb-2">
+        <div className="text-center mb-3">
           <span className="text-text-secondary text-[11px] font-medium tracking-widest">
             VAI CỦA BẠN
           </span>
         </div>
       </div>
 
-      {/* Scrollable card body */}
-      <div className="scrollable flex-1 min-h-0 overflow-y-auto pr-1">
+      {/* Card + controls — centered vertically in remaining space */}
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
         {!card ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-text-secondary text-sm italic">Đang nhận bài...</p>
-          </div>
+          <p className="text-text-secondary text-sm italic">Đang nhận bài...</p>
         ) : (
           <>
-            <div
-              className="bg-bg-surface rounded-[16px] p-4"
-              style={{ border: `1.5px solid ${TEAM_INFO[card.team].accentColor}` }}
-            >
-              <div
-                className="rounded-[12px] flex items-center justify-center mb-3.5 mx-auto overflow-hidden"
-                style={{
-                  background: gradientByTeam[card.team],
-                  maxWidth: '150px',
-                  aspectRatio: '1',
-                }}
-              >
-                <img
-                  src={card.imageUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  aria-hidden
-                />
-              </div>
+            <RevealCard card={card} />
 
-              <div className="text-center mb-3.5">
-                <div
-                  className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 mb-2"
-                  style={{
-                    background: `${TEAM_INFO[card.team].accentColor}26`,
-                    border: `1px solid ${TEAM_INFO[card.team].accentColor}59`,
-                  }}
-                >
-                  <div
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: TEAM_INFO[card.team].accentColor }}
-                    aria-hidden
-                  />
-                  <span
-                    className="text-[11px] font-medium tracking-wider uppercase"
-                    style={{ color: TEAM_INFO[card.team].accentColor }}
-                  >
-                    {TEAM_INFO[card.team].label}
-                  </span>
-                </div>
-                <div className="text-text-primary text-[24px] font-medium">
-                  {card.name}
-                </div>
-              </div>
-
-              <div className="bg-bg-base border border-bg-surface-hi rounded-[10px] p-3 mb-2">
-                <div className="text-accent text-[10px] font-medium mb-1.5 tracking-wider">
-                  KHẢ NĂNG
-                </div>
-                <p className="text-text-primary text-[13px] leading-relaxed m-0">
-                  {card.ability}
-                </p>
-              </div>
-
-              <div className="bg-bg-base border border-bg-surface-hi rounded-[10px] p-3 mb-2">
-                <div className="text-accent text-[10px] font-medium mb-1.5 tracking-wider">
-                  THỜI ĐIỂM DẬY
-                </div>
-                <p className="text-text-primary text-[13px] leading-relaxed m-0">
-                  {card.wakeTime}
-                </p>
-              </div>
-
-              {card.notes && (
-                <div
-                  className="rounded-[10px] p-3"
-                  style={{
-                    background: 'rgba(232, 155, 60, 0.06)',
-                    border: '1px solid rgba(232, 155, 60, 0.25)',
-                  }}
-                >
-                  <div className="text-accent text-[10px] font-medium mb-1.5 tracking-wider flex items-center gap-1">
-                    <AlertTriangle size={11} aria-hidden /> LƯU Ý
-                  </div>
-                  <p className="text-text-primary text-[13px] leading-relaxed m-0">
-                    {card.notes}
-                  </p>
-                </div>
-              )}
+            <div className="mt-5 text-center">
+              <p className="text-text-primary text-sm font-medium m-0">
+                Giữ vào card để xem
+              </p>
+              <p className="text-text-secondary text-xs mt-0.5">
+                Thả tay để giấu bài lại
+              </p>
             </div>
 
-            <div
-              className="mt-3 rounded-[10px] p-2.5 text-center"
-              style={{
-                background: 'rgba(232, 155, 60, 0.06)',
-                border: '1px dashed rgba(232, 155, 60, 0.25)',
-              }}
+            <button
+              type="button"
+              onClick={() => setShowDetail(true)}
+              className="mt-5 inline-flex items-center gap-1.5 bg-transparent border border-bg-surface-hi rounded-[10px] px-4 py-2.5 text-accent text-[13px] font-medium active:scale-95"
             >
-              <span className="text-text-secondary text-[11px] italic">
-                Phase 2.5 sẽ thêm hiệu ứng tap-and-hold để giấu bài
-              </span>
-            </div>
+              <Info size={14} aria-hidden /> Xem chi tiết vai trò
+            </button>
           </>
         )}
       </div>
+
+      <CardDetailDialog
+        card={showDetail && card ? card : null}
+        onClose={() => setShowDetail(false)}
+      />
     </div>
   );
 }

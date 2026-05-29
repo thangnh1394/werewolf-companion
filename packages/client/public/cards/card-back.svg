@@ -1,0 +1,68 @@
+<svg viewBox="0 0 280 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+  <!-- Forest dark background -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2D3225"/>
+      <stop offset="100%" stop-color="#1F2419"/>
+    </linearGradient>
+    <radialGradient id="moonGlow" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#E89B3C" stop-opacity="0.45"/>
+      <stop offset="60%" stop-color="#E89B3C" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#E89B3C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="moon" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F5EFE0" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="#E89B3C" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#5A3F26" stop-opacity="0.7"/>
+    </radialGradient>
+  </defs>
+  <rect width="280" height="400" fill="url(#bg)"/>
+
+  <!-- Inner border filigree -->
+  <rect x="14" y="14" width="252" height="372" rx="14" ry="14" fill="none" stroke="#E89B3C" stroke-opacity="0.25" stroke-width="1"/>
+  <rect x="22" y="22" width="236" height="356" rx="10" ry="10" fill="none" stroke="#E89B3C" stroke-opacity="0.12" stroke-width="0.5"/>
+
+  <!-- Corner ornaments -->
+  <g fill="#E89B3C" opacity="0.35">
+    <circle cx="32" cy="32" r="2"/>
+    <circle cx="248" cy="32" r="2"/>
+    <circle cx="32" cy="368" r="2"/>
+    <circle cx="248" cy="368" r="2"/>
+  </g>
+
+  <!-- Glow behind moon -->
+  <circle cx="140" cy="170" r="100" fill="url(#moonGlow)"/>
+
+  <!-- Pine tree silhouettes (bottom) -->
+  <g fill="#0F1410" opacity="0.85">
+    <polygon points="20,360 50,260 80,360"/>
+    <polygon points="60,360 95,230 130,360"/>
+    <polygon points="115,360 150,280 185,360"/>
+    <polygon points="170,360 205,240 240,360"/>
+    <polygon points="220,360 250,265 280,360"/>
+  </g>
+
+  <!-- Moon -->
+  <circle cx="140" cy="170" r="48" fill="url(#moon)"/>
+  <circle cx="140" cy="170" r="48" fill="none" stroke="#E89B3C" stroke-width="0.8" opacity="0.7"/>
+  <!-- Moon craters -->
+  <circle cx="125" cy="160" r="4" fill="#5A3F26" opacity="0.35"/>
+  <circle cx="150" cy="180" r="6" fill="#5A3F26" opacity="0.3"/>
+  <circle cx="155" cy="160" r="3" fill="#5A3F26" opacity="0.4"/>
+
+  <!-- Stars -->
+  <g fill="#F5EFE0">
+    <circle cx="50" cy="80" r="1" opacity="0.7"/>
+    <circle cx="220" cy="60" r="1.3" opacity="0.8"/>
+    <circle cx="240" cy="120" r="0.9" opacity="0.6"/>
+    <circle cx="40" cy="140" r="1.1" opacity="0.65"/>
+    <circle cx="180" cy="100" r="1" opacity="0.55"/>
+    <circle cx="90" cy="50" r="0.8" opacity="0.6"/>
+    <circle cx="200" cy="200" r="0.9" opacity="0.5"/>
+  </g>
+
+  <!-- Subtle wolf silhouette below the moon, peeking from trees -->
+  <g fill="#0A0C08" opacity="0.7">
+    <path d="M 132 305 L 132 290 L 130 285 L 130 282 L 134 285 L 138 282 L 138 285 L 140 290 L 142 285 L 146 282 L 146 285 L 148 290 L 148 305 Z"/>
+  </g>
+</svg>
