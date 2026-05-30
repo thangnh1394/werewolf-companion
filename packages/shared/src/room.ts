@@ -32,6 +32,8 @@ export type DisplayName = z.infer<typeof DisplayNameSchema>;
 export const PublicPlayerSchema = z.object({
   sessionId: SessionIdSchema,
   displayName: DisplayNameSchema,
+  /** Avatar id from @werewolf/shared AVATARS (optional for backward compat with pre-Phase-3.3 rooms). */
+  avatarId: z.string().optional(),
   isReady: z.boolean(),
   isHost: z.boolean(),
   joinedAt: z.number().int(), // epoch ms, used for stable join-order sorting

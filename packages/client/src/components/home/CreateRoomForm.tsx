@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Dices, User, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Dices, User, Info, Image } from 'lucide-react';
 import {
   MAX_NAME_LENGTH,
   ROOM_CODE_PATTERN,
   ROOM_CODE_LENGTH,
+  findAvatar,
 } from '@werewolf/shared';
 import { Button } from '../ui/Button';
 import { TextInput } from '../ui/TextInput';
 import { CodeInput } from '../ui/CodeInput';
 import { usePersistedName } from '../../hooks/usePersistedName';
+import { usePersistedAvatar } from '../../hooks/usePersistedAvatar';
 import { saveLastRoomCode } from '../../lib/storage';
+import { AvatarPickerDialog } from '../profile/AvatarPickerDialog';
 
 function randomCode(): string {
   const n = Math.floor(Math.random() * 1_000_000);
@@ -20,9 +23,12 @@ function randomCode(): string {
 export function CreateRoomForm() {
   const navigate = useNavigate();
   const { name, setName, persist } = usePersistedName();
+  const { avatarId, setAvatarId } = usePersistedAvatar();
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
+  const avatar = findAvatar(avatarId);
   const trimmedName = name.trim();
   const isValid =
     trimmedName.length > 0 &&
@@ -34,8 +40,9 @@ export function CreateRoomForm() {
     setSubmitting(true);
     persist();
     saveLastRoomCode(code);
-    // Navigate to lobby; query string carries isHost=1 so the lobby knows to send JOIN with isHost: true
-    navigate(`/lobby/${code}?host=1`, { state: { displayName: trimmedName } });
+    navigate(`/lobby/${code}?host=1`, {
+      state: { displayName: trimmedName, avatarId },
+    });
   };
 
   return (
@@ -55,7 +62,7 @@ export function CreateRoomForm() {
         </div>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-4">
         <TextInput
           label="Tên hiển thị của bạn"
           value={name}
@@ -67,6 +74,33 @@ export function CreateRoomForm() {
             <span>Tên này sẽ hiện trong phòng. Có thể trùng người khác.</span>
           }
         />
+      </div>
+
+      {/* Avatar selector */}
+      <div className="mb-6">
+        <label className="block text-[13px] font-medium text-text-primary mb-2">
+          Ảnh đại diện
+        </label>
+        <button
+          type="button"
+          onClick={() => setAvatarPickerOpen(true)}
+          className="w-full bg-bg-surface border border-bg-surface-hi rounded-[12px] px-3 py-2.5 flex items-center gap-3 active:scale-[0.99]"
+        >
+          <img
+            src={avatar.url}
+            alt=""
+            draggable={false}
+            className="w-11 h-11 rounded-full object-cover shrink-0"
+            style={{ border: '2px solid rgba(232,155,60,0.4)' }}
+          />
+          <div className="flex-1 min-w-0 text-left">
+            <div className="text-text-primary text-[14px] font-medium truncate">
+              {avatar.label}
+            </div>
+            <div className="text-text-secondary text-[11px]">Bấm để đổi ảnh khác</div>
+          </div>
+          <Image size={16} className="text-accent shrink-0" aria-hidden />
+        </button>
       </div>
 
       <div className="mb-6">
@@ -93,6 +127,13 @@ export function CreateRoomForm() {
         Tạo phòng
         <ArrowRight size={18} aria-hidden />
       </Button>
+
+      <AvatarPickerDialog
+        open={avatarPickerOpen}
+        onClose={() => setAvatarPickerOpen(false)}
+        initialAvatarId={avatarId}
+        onSave={setAvatarId}
+      />
     </div>
   );
 }

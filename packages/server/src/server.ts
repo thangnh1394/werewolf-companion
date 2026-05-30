@@ -21,6 +21,7 @@ import {
   removePlayer,
   setCardCount,
   setPlayerReady,
+  updateProfile,
 } from './lobby/lobbyState.js';
 
 /**
@@ -93,7 +94,7 @@ export default class LobbyServer implements Party.Server {
 
     switch (msg.type) {
       case 'JOIN':
-        await this.handleJoin(sender, msg.sessionId, msg.displayName, msg.isHost);
+        await this.handleJoin(sender, msg.sessionId, msg.displayName, msg.isHost, msg.avatarId);
         return;
 
       case 'SET_READY':
@@ -140,6 +141,14 @@ export default class LobbyServer implements Party.Server {
           return;
         }
         await this.handleEndGame(data.sessionId);
+        return;
+
+      case 'UPDATE_PROFILE':
+        if (!data) {
+          sender.close(1008, 'not_joined');
+          return;
+        }
+        await this.handleUpdateProfile(data.sessionId, msg.displayName, msg.avatarId);
         return;
     }
   }
@@ -197,6 +206,7 @@ export default class LobbyServer implements Party.Server {
     sessionId: SessionId,
     displayName: string,
     isHost: boolean,
+    avatarId: string | undefined,
   ): Promise<void> {
     if (this.lobby.phase === 'playing') {
       this.sendTo(conn, { type: 'JOIN_ERROR', reason: 'room_in_progress' });
@@ -209,6 +219,7 @@ export default class LobbyServer implements Party.Server {
       displayName,
       isHost,
       now: Date.now(),
+      ...(avatarId !== undefined ? { avatarId } : {}),
     });
 
     if (!result.ok) {
@@ -348,6 +359,32 @@ export default class LobbyServer implements Party.Server {
         this.broadcastMessage({ type: 'PLAYER_UPDATED', player: p });
       }
     }
+  }
+
+  /**
+   * Phase 3.3 follow-up: A player updates their display name and/or avatar.
+   * Only allowed in lobby phase (locked during play to keep identity stable).
+   * Broadcasts PLAYER_UPDATED so all clients re-render this player.
+   */
+  private async handleUpdateProfile(
+    requesterId: SessionId,
+    displayName: string,
+    avatarId: string | undefined,
+  ): Promise<void> {
+    // Only allowed in lobby phase
+    if (this.lobby.phase !== 'lobby') return;
+
+    const result = updateProfile(this.lobby, requesterId, {
+      displayName,
+      ...(avatarId !== undefined ? { avatarId } : {}),
+    });
+    if (!result) return; // player not found
+
+    this.lobby = result.state;
+    await this.persistState();
+    await this.touchActivity();
+
+    this.broadcastMessage({ type: 'PLAYER_UPDATED', player: result.player });
   }
 
   // ---------- Helpers ----------

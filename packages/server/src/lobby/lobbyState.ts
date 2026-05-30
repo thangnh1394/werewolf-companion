@@ -80,6 +80,8 @@ export function addPlayer(
     displayName: DisplayName;
     isHost: boolean;
     now: number;
+    /** Optional avatar id. Stored on PublicPlayer; visible to all players. */
+    avatarId?: string;
   },
 ): AddPlayerResult {
   // Re-joining (same sessionId): allow without capacity check.
@@ -88,6 +90,7 @@ export function addPlayer(
     const updatedPlayer: PublicPlayer = {
       ...existing,
       displayName: args.displayName, // allow name update on re-join
+      ...(args.avatarId !== undefined ? { avatarId: args.avatarId } : {}),
       isConnected: true,
     };
     const players = new Map(state.players);
@@ -116,6 +119,7 @@ export function addPlayer(
   const player: PublicPlayer = {
     sessionId: args.sessionId,
     displayName: args.displayName,
+    ...(args.avatarId !== undefined ? { avatarId: args.avatarId } : {}),
     isReady: claimsHost,
     isHost: claimsHost,
     joinedAt: args.now,
@@ -337,4 +341,30 @@ export function endGame(state: LobbyState): LobbyState {
     players,
     // roomDesk explicitly unchanged
   };
+}
+
+/**
+ * Update a player's display name and/or avatar (Phase 3.3 follow-up).
+ *
+ * - Only allowed during 'lobby' phase (caller must validate)
+ * - Returns updated state + the updated player (for the caller to broadcast)
+ * - Returns null if player not found
+ */
+export function updateProfile(
+  state: LobbyState,
+  sessionId: SessionId,
+  args: { displayName: DisplayName; avatarId?: string },
+): { state: LobbyState; player: PublicPlayer } | null {
+  const existing = state.players.get(sessionId);
+  if (!existing) return null;
+
+  const updated: PublicPlayer = {
+    ...existing,
+    displayName: args.displayName,
+    ...(args.avatarId !== undefined ? { avatarId: args.avatarId } : {}),
+  };
+  const players = new Map(state.players);
+  players.set(sessionId, updated);
+
+  return { state: { ...state, players }, player: updated };
 }

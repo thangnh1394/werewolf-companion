@@ -10,6 +10,7 @@ interface UseLobbyArgs {
   roomCode: string;
   displayName: string;
   isHost: boolean;
+  avatarId?: string;
 }
 
 /**
@@ -21,7 +22,7 @@ interface UseLobbyArgs {
  * - Reopens (partysocket auto-reconnects) on disconnect
  * - Returns derived UI state + action callbacks
  */
-export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
+export function useLobby({ roomCode, displayName, isHost, avatarId }: UseLobbyArgs) {
   const sessionId = useMemo(() => getOrCreateSessionId() as SessionId, []);
 
   const [state, send] = useMachine(lobbyMachine, {
@@ -50,6 +51,7 @@ export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
         sessionId,
         displayName,
         isHost,
+        ...(avatarId ? { avatarId } : {}),
       } as ClientMessage);
       send({ type: 'CONNECTION_RESTORED' });
     };
@@ -87,7 +89,7 @@ export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
       socket.close();
       socketRef.current = null;
     };
-  }, [roomCode, sessionId, displayName, isHost, send]);
+  }, [roomCode, sessionId, displayName, isHost, avatarId, send]);
 
   const setReady = useCallback((isReady: boolean) => {
     const s = socketRef.current;
@@ -119,6 +121,16 @@ export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
     if (s) sendMessage(s, { type: 'END_GAME' });
   }, []);
 
+  const updateProfile = useCallback((displayName: string, avatarId?: string) => {
+    const s = socketRef.current;
+    if (!s) return;
+    sendMessage(s, {
+      type: 'UPDATE_PROFILE',
+      displayName,
+      ...(avatarId !== undefined ? { avatarId } : {}),
+    } as ClientMessage);
+  }, []);
+
   return {
     phase: state.value as
       | 'connecting'
@@ -129,7 +141,7 @@ export function useLobby({ roomCode, displayName, isHost }: UseLobbyArgs) {
       | 'room_closed'
       | 'playing',
     context: state.context,
-    actions: { setReady, kickPlayer, startGame, leave, setCardCount, endGame },
+    actions: { setReady, kickPlayer, startGame, leave, setCardCount, endGame, updateProfile },
     sessionId,
   };
 }

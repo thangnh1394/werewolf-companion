@@ -4,18 +4,22 @@ import {
   ArrowLeft,
   ArrowRight,
   BookmarkCheck,
+  Image,
   Link as LinkIcon,
   User,
 } from 'lucide-react';
 import {
   MAX_NAME_LENGTH,
   ROOM_CODE_PATTERN,
+  findAvatar,
 } from '@werewolf/shared';
 import { Button } from '../ui/Button';
 import { TextInput } from '../ui/TextInput';
 import { CodeInput } from '../ui/CodeInput';
 import { usePersistedName } from '../../hooks/usePersistedName';
+import { usePersistedAvatar } from '../../hooks/usePersistedAvatar';
 import { saveLastRoomCode } from '../../lib/storage';
+import { AvatarPickerDialog } from '../profile/AvatarPickerDialog';
 
 export function JoinRoomForm() {
   const navigate = useNavigate();
@@ -23,13 +27,16 @@ export function JoinRoomForm() {
   const codeFromUrl = searchParams.get('code') ?? '';
 
   const { name, setName, persist } = usePersistedName();
+  const { avatarId, setAvatarId } = usePersistedAvatar();
   const [code, setCode] = useState<string>(() =>
     /^\d{1,6}$/.test(codeFromUrl) ? codeFromUrl : '',
   );
   const [submitting, setSubmitting] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
   const cameFromLink = code === codeFromUrl && codeFromUrl.length > 0;
   const nameWasPersisted = name.length > 0;
+  const avatar = findAvatar(avatarId);
 
   // If URL code becomes valid, reflect into local state
   useEffect(() => {
@@ -50,7 +57,9 @@ export function JoinRoomForm() {
     setSubmitting(true);
     persist();
     saveLastRoomCode(code);
-    navigate(`/lobby/${code}`, { state: { displayName: trimmedName } });
+    navigate(`/lobby/${code}`, {
+      state: { displayName: trimmedName, avatarId },
+    });
   };
 
   return (
@@ -86,7 +95,7 @@ export function JoinRoomForm() {
         <CodeInput value={code} onChange={setCode} autoFocus={!cameFromLink} />
       </div>
 
-      <div className="mb-7">
+      <div className="mb-5">
         <TextInput
           label="Tên hiển thị của bạn"
           value={name}
@@ -105,10 +114,44 @@ export function JoinRoomForm() {
         />
       </div>
 
+      {/* Avatar selector */}
+      <div className="mb-7">
+        <label className="block text-[13px] font-medium text-text-primary mb-2">
+          Ảnh đại diện
+        </label>
+        <button
+          type="button"
+          onClick={() => setAvatarPickerOpen(true)}
+          className="w-full bg-bg-surface border border-bg-surface-hi rounded-[12px] px-3 py-2.5 flex items-center gap-3 active:scale-[0.99]"
+        >
+          <img
+            src={avatar.url}
+            alt=""
+            draggable={false}
+            className="w-11 h-11 rounded-full object-cover shrink-0"
+            style={{ border: '2px solid rgba(232,155,60,0.4)' }}
+          />
+          <div className="flex-1 min-w-0 text-left">
+            <div className="text-text-primary text-[14px] font-medium truncate">
+              {avatar.label}
+            </div>
+            <div className="text-text-secondary text-[11px]">Bấm để đổi ảnh khác</div>
+          </div>
+          <Image size={16} className="text-accent shrink-0" aria-hidden />
+        </button>
+      </div>
+
       <Button fullWidth onClick={handleSubmit} disabled={!isValid || submitting}>
         Vào phòng
         <ArrowRight size={18} aria-hidden />
       </Button>
+
+      <AvatarPickerDialog
+        open={avatarPickerOpen}
+        onClose={() => setAvatarPickerOpen(false)}
+        initialAvatarId={avatarId}
+        onSave={setAvatarId}
+      />
     </div>
   );
 }

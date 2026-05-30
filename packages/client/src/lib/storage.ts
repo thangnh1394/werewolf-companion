@@ -74,3 +74,14 @@ export function saveLastRoomCode(code: string): void {
 export function clearLastRoomCode(): void {
   safeRemove(STORAGE_KEYS.lastRoomCode);
 }
+
+// ---------- Avatar id ----------
+
+export function getSavedAvatarId(): string | null {
+  return safeGet(STORAGE_KEYS.avatarId);
+}
+
+export function saveAvatarId(avatarId: string): void {
+  if (!avatarId) return;
+  safeSet(STORAGE_KEYS.avatarId, avatarId);
+}

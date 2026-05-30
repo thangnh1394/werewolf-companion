@@ -26,4 +26,5 @@ export const STORAGE_KEYS = {
   sessionId: 'wwc.sessionId',
   displayName: 'wwc.displayName',
   lastRoomCode: 'wwc.lastRoomCode',
+  avatarId: 'wwc.avatarId',
 } as const;

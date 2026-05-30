@@ -19,7 +19,7 @@ export function PlayerRow({ player, isSelf, viewerIsHost, onKick }: PlayerRowPro
       ].join(' ')}
     >
       <div className="flex items-center gap-2.5 min-w-0">
-        <Avatar name={player.displayName} isHost={player.isHost} />
+        <Avatar name={player.displayName} avatarId={player.avatarId} isHost={player.isHost} />
         <div className="min-w-0">
           <div className="text-text-primary text-sm font-medium truncate">
             {player.displayName}

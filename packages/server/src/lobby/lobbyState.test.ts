@@ -14,6 +14,7 @@ import {
   removePlayer,
   setCardCount,
   setPlayerReady,
+  updateProfile,
 } from './lobbyState.js';
 import { cryptoShuffle } from './shuffle.js';
 
@@ -795,5 +796,92 @@ describe('endGame', () => {
     endGame(state);
     expect(state.phase).toBe(phaseBefore);
     expect(state.assignments.size).toBe(assignmentsSizeBefore);
+  });
+});
+
+// ---------- Phase 3.3 follow-up: Profile updates ----------
+
+describe('updateProfile', () => {
+  it('updates displayName and avatarId on the player', () => {
+    let state = createEmptyLobby('482915');
+    const sid = uuid();
+    state = mustAdd(addPlayer(state, {
+      sessionId: sid,
+      displayName: 'Hoàng',
+      isHost: true,
+      now: NOW,
+      avatarId: 'wolf',
+    })).state;
+
+    const result = updateProfile(state, sid, {
+      displayName: 'Hoàng Mới',
+      avatarId: 'owl',
+    });
+    expect(result).not.toBeNull();
+    expect(result!.player.displayName).toBe('Hoàng Mới');
+    expect(result!.player.avatarId).toBe('owl');
+  });
+
+  it('returns null when player not found', () => {
+    const state = createEmptyLobby('482915');
+    const fakeId = uuid();
+    const result = updateProfile(state, fakeId, {
+      displayName: 'X',
+      avatarId: 'wolf',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('preserves other player fields (isHost, isReady, joinedAt)', () => {
+    let state = createEmptyLobby('482915');
+    const sid = uuid();
+    state = mustAdd(addPlayer(state, {
+      sessionId: sid,
+      displayName: 'Host',
+      isHost: true,
+      now: NOW,
+    })).state;
+    const before = state.players.get(sid)!;
+    expect(before.isHost).toBe(true);
+    expect(before.isReady).toBe(true);
+
+    const result = updateProfile(state, sid, {
+      displayName: 'Host Renamed',
+      avatarId: 'bear',
+    });
+    expect(result!.player.isHost).toBe(true);
+    expect(result!.player.isReady).toBe(true);
+    expect(result!.player.joinedAt).toBe(before.joinedAt);
+  });
+
+  it('allows updating displayName without avatarId', () => {
+    let state = createEmptyLobby('482915');
+    const sid = uuid();
+    state = mustAdd(addPlayer(state, {
+      sessionId: sid,
+      displayName: 'Name1',
+      isHost: false,
+      now: NOW,
+      avatarId: 'cat',
+    })).state;
+    const result = updateProfile(state, sid, {
+      displayName: 'Name2',
+    });
+    expect(result!.player.displayName).toBe('Name2');
+    expect(result!.player.avatarId).toBe('cat'); // unchanged
+  });
+
+  it('does not mutate input state', () => {
+    let state = createEmptyLobby('482915');
+    const sid = uuid();
+    state = mustAdd(addPlayer(state, {
+      sessionId: sid,
+      displayName: 'A',
+      isHost: false,
+      now: NOW,
+    })).state;
+    const beforeName = state.players.get(sid)!.displayName;
+    updateProfile(state, sid, { displayName: 'B', avatarId: 'fox' });
+    expect(state.players.get(sid)!.displayName).toBe(beforeName);
   });
 });
