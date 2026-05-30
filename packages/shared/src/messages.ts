@@ -88,18 +88,6 @@ export const EndGameMessageSchema = z.object({
 });
 export type EndGameMessage = z.infer<typeof EndGameMessageSchema>;
 
-/**
- * Update the current player's display name and/or avatar.
- * Only allowed while the room is in lobby phase (not during playing).
- * Server broadcasts PLAYER_UPDATED so other clients see the change immediately.
- */
-export const UpdateProfileMessageSchema = z.object({
-  type: z.literal('UPDATE_PROFILE'),
-  displayName: DisplayNameSchema,
-  avatarId: z.string().optional(),
-});
-export type UpdateProfileMessage = z.infer<typeof UpdateProfileMessageSchema>;
-
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   JoinMessageSchema,
   SetReadyMessageSchema,
@@ -108,7 +96,6 @@ export const ClientMessageSchema = z.discriminatedUnion('type', [
   LeaveRoomMessageSchema,
   SetCardCountMessageSchema,
   EndGameMessageSchema,
-  UpdateProfileMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 

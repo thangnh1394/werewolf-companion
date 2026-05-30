@@ -342,29 +342,3 @@ export function endGame(state: LobbyState): LobbyState {
     // roomDesk explicitly unchanged
   };
 }
-
-/**
- * Update a player's display name and/or avatar (Phase 3.3 follow-up).
- *
- * - Only allowed during 'lobby' phase (caller must validate)
- * - Returns updated state + the updated player (for the caller to broadcast)
- * - Returns null if player not found
- */
-export function updateProfile(
-  state: LobbyState,
-  sessionId: SessionId,
-  args: { displayName: DisplayName; avatarId?: string },
-): { state: LobbyState; player: PublicPlayer } | null {
-  const existing = state.players.get(sessionId);
-  if (!existing) return null;
-
-  const updated: PublicPlayer = {
-    ...existing,
-    displayName: args.displayName,
-    ...(args.avatarId !== undefined ? { avatarId: args.avatarId } : {}),
-  };
-  const players = new Map(state.players);
-  players.set(sessionId, updated);
-
-  return { state: { ...state, players }, player: updated };
-}

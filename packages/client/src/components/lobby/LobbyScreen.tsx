@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Layers as Cards, Check, DoorOpen, Flame, LogOut, Spade, UserRound } from 'lucide-react';
+import { Layers as Cards, Check, DoorOpen, Flame, LogOut, Spade } from 'lucide-react';
 import { MIN_PLAYERS, type PublicPlayer, type SessionId } from '@werewolf/shared';
 import { Button } from '../ui/Button';
 import { Toast } from '../ui/Toast';
@@ -12,14 +12,8 @@ import { RoomDeskPreview } from './RoomDeskPreview';
 import { MainDeskScreen } from '../cards/MainDeskScreen';
 import { RoomDeskEditor } from '../cards/RoomDeskEditor';
 import { PlayingScreen } from '../game/PlayingScreen';
-import { ProfileDialog } from '../profile/ProfileDialog';
 import { formatRoomCode } from '../../lib/format';
-import {
-  clearLastRoomCode,
-  getSavedAvatarId,
-  saveAvatarId,
-  saveDisplayName,
-} from '../../lib/storage';
+import { clearLastRoomCode, getSavedAvatarId } from '../../lib/storage';
 
 interface LocationState {
   displayName?: string;
@@ -48,7 +42,6 @@ export function LobbyScreen() {
   const [pendingKick, setPendingKick] = useState<PublicPlayer | null>(null);
   const [showMainDesk, setShowMainDesk] = useState(false);
   const [showRoomDeskEditor, setShowRoomDeskEditor] = useState(false);
-  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [startErrorToast, setStartErrorToast] = useState<{
     expected: number;
     actual: number;
@@ -159,14 +152,6 @@ export function LobbyScreen() {
             </span>
           </div>
           <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setProfileDialogOpen(true)}
-              aria-label="Đổi tên / ảnh đại diện"
-              className="w-8 h-8 bg-transparent border border-bg-surface-hi rounded-[8px] text-text-primary inline-flex items-center justify-center active:scale-95"
-            >
-              <UserRound size={15} aria-hidden />
-            </button>
             <button
               type="button"
               onClick={() => setShowMainDesk(true)}
@@ -308,21 +293,6 @@ export function LobbyScreen() {
             : ''
         }
         onClose={() => setStartErrorToast(null)}
-      />
-
-      <ProfileDialog
-        open={profileDialogOpen}
-        onClose={() => setProfileDialogOpen(false)}
-        initialName={self?.displayName ?? displayName}
-        initialAvatarId={self?.avatarId ?? avatarId ?? 'wolf'}
-        inRoom
-        onSave={(newName, newAvatarId) => {
-          // Persist locally so future joins use new profile
-          saveDisplayName(newName);
-          saveAvatarId(newAvatarId);
-          // Broadcast to server — server will PLAYER_UPDATED everyone
-          lobby.actions.updateProfile(newName, newAvatarId);
-        }}
       />
     </div>
   );

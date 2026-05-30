@@ -14,11 +14,8 @@ interface ProfileDialogProps {
   initialAvatarId: string;
   /**
    * Called when user saves. Persistence to localStorage is the caller's responsibility.
-   * If used inside a room, the caller should ALSO send UPDATE_PROFILE to the server.
    */
   onSave: (name: string, avatarId: string) => void;
-  /** If true, the dialog shows the in-room note ("applies immediately"). Otherwise shows the home-screen note. */
-  inRoom?: boolean;
 }
 
 /**
@@ -34,7 +31,6 @@ export function ProfileDialog({
   initialName,
   initialAvatarId,
   onSave,
-  inRoom = false,
 }: ProfileDialogProps) {
   const [name, setName] = useState(initialName);
   const [avatarId, setAvatarId] = useState(initialAvatarId);
@@ -103,9 +99,8 @@ export function ProfileDialog({
 
       <div className="bg-bg-base/50 border border-bg-surface-hi rounded-[10px] p-2.5 mb-4">
         <div className="text-text-secondary text-[11px] leading-relaxed">
-          {inRoom
-            ? 'Thay đổi sẽ áp dụng ngay trong phòng. Mọi người sẽ thấy ảnh + tên mới.'
-            : 'Thay đổi sẽ được áp dụng cho các phòng tiếp theo.'}
+          Thay đổi sẽ áp dụng cho các phòng tiếp theo. Để áp dụng cho phòng hiện tại,
+          bạn cần rời phòng và tham gia lại.
         </div>
       </div>
 
