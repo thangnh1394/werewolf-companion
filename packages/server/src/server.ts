@@ -13,6 +13,7 @@ import {
   createEmptyLobby,
   dealCards,
   deckAsRecord,
+  endGame,
   getPlayersList,
   kickPlayer,
   type LobbyState,
@@ -131,6 +132,14 @@ export default class LobbyServer implements Party.Server {
           return;
         }
         await this.handleSetCardCount(data.sessionId, msg.cardId, msg.count);
+        return;
+
+      case 'END_GAME':
+        if (!data) {
+          sender.close(1008, 'not_joined');
+          return;
+        }
+        await this.handleEndGame(data.sessionId);
         return;
     }
   }
@@ -308,6 +317,37 @@ export default class LobbyServer implements Party.Server {
       type: 'ROOM_DESK_UPDATED',
       deck: deckAsRecord(this.lobby),
     });
+  }
+
+  /**
+   * Phase 2.6: Host ends the game.
+   * - Clears card assignments
+   * - Resets non-host isReady (host stays true)
+   * - Keeps roomDesk for next round
+   * - Transitions phase: playing → lobby
+   * - Broadcasts GAME_ENDED + PLAYER_UPDATED for each player whose state changed
+   */
+  private async handleEndGame(requesterId: SessionId): Promise<void> {
+    // Only host may end the game
+    if (this.lobby.hostSessionId !== requesterId) return;
+    // Only during playing phase (no-op if already lobby)
+    if (this.lobby.phase !== 'playing') return;
+
+    const beforePlayers = this.lobby.players;
+    this.lobby = endGame(this.lobby);
+    await this.persistState();
+    await this.touchActivity();
+
+    // Broadcast phase change first — clients can transition immediately.
+    this.broadcastMessage({ type: 'GAME_ENDED' });
+
+    // Then broadcast player updates so each client's player list reflects new ready states.
+    for (const [sid, p] of this.lobby.players) {
+      const prev = beforePlayers.get(sid);
+      if (prev && prev.isReady !== p.isReady) {
+        this.broadcastMessage({ type: 'PLAYER_UPDATED', player: p });
+      }
+    }
   }
 
   // ---------- Helpers ----------

@@ -76,6 +76,16 @@ export const SetCardCountMessageSchema = z.object({
 });
 export type SetCardCountMessage = z.infer<typeof SetCardCountMessageSchema>;
 
+/**
+ * Host-only: end the current game and return all players to lobby.
+ * Server clears card assignments, resets non-host ready states (host stays ready),
+ * preserves roomDesk for next round, transitions phase: playing → lobby.
+ */
+export const EndGameMessageSchema = z.object({
+  type: z.literal('END_GAME'),
+});
+export type EndGameMessage = z.infer<typeof EndGameMessageSchema>;
+
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   JoinMessageSchema,
   SetReadyMessageSchema,
@@ -83,6 +93,7 @@ export const ClientMessageSchema = z.discriminatedUnion('type', [
   StartGameMessageSchema,
   LeaveRoomMessageSchema,
   SetCardCountMessageSchema,
+  EndGameMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 
@@ -176,6 +187,16 @@ export const YourCardMessageSchema = z.object({
 });
 export type YourCardMessage = z.infer<typeof YourCardMessageSchema>;
 
+/**
+ * Broadcast when the host ends the current game. Carries NO card information —
+ * card assignments were cleared server-side before this broadcast.
+ * After this event, clients transition back to lobby phase.
+ */
+export const GameEndedMessageSchema = z.object({
+  type: z.literal('GAME_ENDED'),
+});
+export type GameEndedMessage = z.infer<typeof GameEndedMessageSchema>;
+
 export const ServerMessageSchema = z.discriminatedUnion('type', [
   StateSnapshotMessageSchema,
   JoinErrorMessageSchema,
@@ -187,5 +208,6 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
   GameStartedMessageSchema,
   YourCardMessageSchema,
   RoomDeskUpdatedMessageSchema,
+  GameEndedMessageSchema,
 ]);
 export type ServerMessage = z.infer<typeof ServerMessageSchema>;

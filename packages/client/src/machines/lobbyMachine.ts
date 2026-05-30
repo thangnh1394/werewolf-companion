@@ -47,6 +47,7 @@ export type LobbyEvent =
   | { type: 'KICKED' }
   | { type: 'ROOM_CLOSED'; reason: RoomClosedReason }
   | { type: 'GAME_STARTED' }
+  | { type: 'GAME_ENDED' }
   | { type: 'YOUR_CARD'; cardId: string }
   | { type: 'ROOM_DESK_UPDATED'; deck: Record<string, number> }
   | { type: 'CONNECTION_LOST' }
@@ -74,6 +75,9 @@ export const lobbyMachine = setup({
     applyCard: assign({
       yourCard: ({ context, event }) =>
         event.type === 'YOUR_CARD' ? event.cardId : context.yourCard,
+    }),
+    clearCard: assign({
+      yourCard: () => null,
     }),
     upsertPlayer: assign({
       players: ({ context, event }) => {
@@ -164,6 +168,10 @@ export const lobbyMachine = setup({
         PLAYER_JOINED: { actions: 'upsertPlayer' },
         PLAYER_UPDATED: { actions: 'upsertPlayer' },
         PLAYER_LEFT: { actions: 'removePlayer' },
+        GAME_ENDED: {
+          target: 'in_lobby',
+          actions: 'clearCard',
+        },
         ROOM_CLOSED: {
           target: 'room_closed',
           actions: 'setClosedReason',

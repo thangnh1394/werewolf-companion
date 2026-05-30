@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Flame, Info } from 'lucide-react';
+import { Flag, Flame, Info } from 'lucide-react';
 import { findCard } from '@werewolf/shared';
 import { formatRoomCode } from '../../lib/format';
 import { RevealCard } from './RevealCard';
@@ -8,6 +8,8 @@ import { CardDetailDialog } from '../cards/CardDetailDialog';
 interface PlayingScreenProps {
   roomCode: string;
   cardId: string | null;
+  isHost: boolean;
+  onEndGame: () => void;
 }
 
 /**
@@ -23,7 +25,12 @@ interface PlayingScreenProps {
  * Tap-and-hold scope: ONLY inside the card. Buttons and header outside the
  * card don't trigger reveal.
  */
-export function PlayingScreen({ roomCode, cardId }: PlayingScreenProps) {
+export function PlayingScreen({
+  roomCode,
+  cardId,
+  isHost,
+  onEndGame,
+}: PlayingScreenProps) {
   const card = cardId ? findCard(cardId) : undefined;
   const [showDetail, setShowDetail] = useState(false);
 
@@ -99,6 +106,20 @@ export function PlayingScreen({ roomCode, cardId }: PlayingScreenProps) {
           </>
         )}
       </div>
+
+      {/* End Game button — host only, at bottom of screen */}
+      {isHost && card && (
+        <div className="shrink-0 mt-4 pt-3 border-t border-bg-surface">
+          <button
+            type="button"
+            onClick={onEndGame}
+            className="w-full bg-bg-surface border border-bg-surface-hi rounded-[12px] py-2.5 px-4 text-text-primary text-sm font-medium inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+          >
+            <Flag size={14} className="text-accent" aria-hidden />
+            Kết thúc trận
+          </button>
+        </div>
+      )}
 
       <CardDetailDialog
         card={showDetail && card ? card : null}

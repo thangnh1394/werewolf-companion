@@ -71,7 +71,14 @@ export function LobbyScreen() {
 
   // Phase 2.4: when game is playing, show the dealt-card screen.
   if (phase === 'playing') {
-    return <PlayingScreen roomCode={code} cardId={context.yourCard} />;
+    return (
+      <PlayingScreen
+        roomCode={code}
+        cardId={context.yourCard}
+        isHost={viewerIsHost}
+        onEndGame={actions.endGame}
+      />
+    );
   }
 
   // Edge / terminal states

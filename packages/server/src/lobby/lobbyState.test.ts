@@ -6,6 +6,7 @@ import {
   createEmptyLobby,
   dealCards,
   deckAsRecord,
+  endGame,
   getDeckSize,
   getPlayersList,
   kickPlayer,
@@ -711,5 +712,88 @@ describe('dealCards', () => {
     const dealt = dealCards(state, identity);
     expect(dealt.phase).toBe('lobby'); // not dealt
     expect(dealt.assignments.size).toBe(0);
+  });
+});
+
+// ---------- Phase 2.6: End Game ----------
+
+describe('endGame', () => {
+  // Identity shuffle for deterministic deal-then-end tests
+  const identity = <T,>(a: T[]): T[] => [...a];
+
+  /** Build a 5-player lobby, all ready, deck filled, dealt → playing. */
+  const buildPlayingLobby = () => {
+    let state = createEmptyLobby('482915');
+    const hostId = uuid();
+    state = mustAdd(addPlayer(state, {
+      sessionId: hostId,
+      displayName: 'Host',
+      isHost: true,
+      now: NOW,
+    })).state;
+    state = setPlayerReady(state, hostId, true)!.state;
+    const playerIds: string[] = [hostId];
+    for (let i = 1; i < 5; i++) {
+      const sid = uuid();
+      playerIds.push(sid);
+      state = mustAdd(addPlayer(state, {
+        sessionId: sid,
+        displayName: `P${i}`,
+        isHost: false,
+        now: NOW + i,
+      })).state;
+      state = setPlayerReady(state, sid, true)!.state;
+    }
+    state = setCardCount(state, 'werewolf', 2);
+    state = setCardCount(state, 'villager', 3);
+    state = dealCards(state, identity);
+    return { state, hostId, playerIds };
+  };
+
+  it('transitions phase from playing to lobby', () => {
+    const { state } = buildPlayingLobby();
+    expect(state.phase).toBe('playing');
+    const ended = endGame(state);
+    expect(ended.phase).toBe('lobby');
+  });
+
+  it('clears assignments completely', () => {
+    const { state } = buildPlayingLobby();
+    expect(state.assignments.size).toBe(5);
+    const ended = endGame(state);
+    expect(ended.assignments.size).toBe(0);
+  });
+
+  it('preserves roomDesk unchanged', () => {
+    const { state } = buildPlayingLobby();
+    const beforeDesk = deckAsRecord(state);
+    const ended = endGame(state);
+    expect(deckAsRecord(ended)).toEqual(beforeDesk);
+  });
+
+  it('resets isReady to false for non-host players', () => {
+    const { state, hostId } = buildPlayingLobby();
+    const ended = endGame(state);
+    for (const [sid, p] of ended.players) {
+      if (sid !== hostId) {
+        expect(p.isReady).toBe(false);
+      }
+    }
+  });
+
+  it('keeps host isReady true after end_game', () => {
+    const { state, hostId } = buildPlayingLobby();
+    const ended = endGame(state);
+    const hostPlayer = ended.players.get(hostId);
+    expect(hostPlayer?.isReady).toBe(true);
+  });
+
+  it('does not mutate the original state', () => {
+    const { state } = buildPlayingLobby();
+    const phaseBefore = state.phase;
+    const assignmentsSizeBefore = state.assignments.size;
+    endGame(state);
+    expect(state.phase).toBe(phaseBefore);
+    expect(state.assignments.size).toBe(assignmentsSizeBefore);
   });
 });

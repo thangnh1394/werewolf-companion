@@ -313,3 +313,28 @@ export function dealCards(
 
   return { ...state, phase: 'playing', assignments };
 }
+
+/**
+ * Ends the current game (Phase 2.6).
+ *
+ * - phase: 'playing' → 'lobby'
+ * - assignments: cleared
+ * - players' isReady: reset to false for non-host; host stays true
+ *   (matches initial room creation behavior — host auto-ready)
+ * - roomDesk: PRESERVED (Phase 0 decision — next round uses same deck)
+ */
+export function endGame(state: LobbyState): LobbyState {
+  const players = new Map<SessionId, PublicPlayer>();
+  for (const [sid, p] of state.players) {
+    const isHostPlayer = p.sessionId === state.hostSessionId;
+    players.set(sid, { ...p, isReady: isHostPlayer });
+  }
+
+  return {
+    ...state,
+    phase: 'lobby',
+    assignments: new Map(),
+    players,
+    // roomDesk explicitly unchanged
+  };
+}
