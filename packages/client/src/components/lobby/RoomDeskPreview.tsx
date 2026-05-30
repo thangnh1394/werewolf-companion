@@ -115,16 +115,27 @@ export function RoomDeskPreview({ roomDesk, isHost, onEdit }: RoomDeskPreviewPro
                     type="button"
                     onClick={() => setSelectedCard(card)}
                     aria-label={`${card.name}, ${count} thẻ. Bấm để xem chi tiết.`}
-                    className="bg-bg-surface rounded-[8px] px-2.5 py-1.5 flex items-center gap-1.5 active:scale-95"
+                    className="bg-bg-surface rounded-[8px] pl-1 pr-2.5 py-1 flex items-center gap-1.5 active:scale-95"
                     style={{
                       border: `1px solid ${info.accentColor}59`,
                     }}
                   >
                     <div
-                      className="w-4 h-4 rounded-sm shrink-0"
-                      style={{ background: gradientByTeam[card.team] }}
+                      className="w-[26px] h-[26px] rounded-full overflow-hidden shrink-0"
+                      style={{
+                        background: gradientByTeam[card.team],
+                        border: `1.5px solid ${info.accentColor}66`,
+                      }}
                       aria-hidden
-                    />
+                    >
+                      <img
+                        src={card.imageUrl}
+                        alt=""
+                        draggable={false}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
                     <span className="text-text-primary text-[12px] font-medium">
                       ×{count}
                     </span>
