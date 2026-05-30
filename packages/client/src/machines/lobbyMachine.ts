@@ -4,6 +4,7 @@ import type {
   JoinErrorReason,
   RoomClosedReason,
   SessionId,
+  TransitionVariant,
 } from '@werewolf/shared';
 
 /**
@@ -29,6 +30,12 @@ export interface LobbyContext {
   roomDesk: Record<string, number>;
   /** This player's dealt card (Phase 2.4). Null until game starts. */
   yourCard: string | null;
+  /**
+   * Game-start transition variant picked by server (Phase 3.4).
+   * Set when GAME_STARTED arrives, consumed by PlayingScreen, cleared on end_game.
+   * Null = no transition (e.g. legacy clients, or after transition consumed).
+   */
+  transitionVariant: TransitionVariant | null;
 }
 
 export type LobbyEvent =
@@ -46,7 +53,7 @@ export type LobbyEvent =
   | { type: 'JOIN_ERROR'; reason: JoinErrorReason }
   | { type: 'KICKED' }
   | { type: 'ROOM_CLOSED'; reason: RoomClosedReason }
-  | { type: 'GAME_STARTED' }
+  | { type: 'GAME_STARTED'; transitionVariant?: TransitionVariant }
   | { type: 'GAME_ENDED' }
   | { type: 'YOUR_CARD'; cardId: string }
   | { type: 'ROOM_DESK_UPDATED'; deck: Record<string, number> }
@@ -78,6 +85,13 @@ export const lobbyMachine = setup({
     }),
     clearCard: assign({
       yourCard: () => null,
+    }),
+    setTransitionVariant: assign({
+      transitionVariant: ({ context, event }) =>
+        event.type === 'GAME_STARTED' ? (event.transitionVariant ?? null) : context.transitionVariant,
+    }),
+    clearTransitionVariant: assign({
+      transitionVariant: () => null,
     }),
     upsertPlayer: assign({
       players: ({ context, event }) => {
@@ -121,6 +135,7 @@ export const lobbyMachine = setup({
     closedReason: null,
     roomDesk: {},
     yourCard: null,
+    transitionVariant: null,
   }),
   states: {
     connecting: {
@@ -156,7 +171,10 @@ export const lobbyMachine = setup({
           target: 'room_closed',
           actions: 'setClosedReason',
         },
-        GAME_STARTED: 'playing',
+        GAME_STARTED: {
+          target: 'playing',
+          actions: 'setTransitionVariant',
+        },
         YOUR_CARD: { actions: 'applyCard' },
         CONNECTION_LOST: 'disconnected',
       },
@@ -170,7 +188,7 @@ export const lobbyMachine = setup({
         PLAYER_LEFT: { actions: 'removePlayer' },
         GAME_ENDED: {
           target: 'in_lobby',
-          actions: 'clearCard',
+          actions: ['clearCard', 'clearTransitionVariant'],
         },
         ROOM_CLOSED: {
           target: 'room_closed',

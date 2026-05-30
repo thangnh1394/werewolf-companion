@@ -1,19 +1,25 @@
 import { useState } from 'react';
 import { Flag, Flame, Info } from 'lucide-react';
-import { findCard } from '@werewolf/shared';
+import { findCard, type TransitionVariant } from '@werewolf/shared';
 import { formatRoomCode } from '../../lib/format';
 import { RevealCard } from './RevealCard';
 import { CardDetailDialog } from '../cards/CardDetailDialog';
+import { GameStartTransition } from './GameStartTransition';
 
 interface PlayingScreenProps {
   roomCode: string;
   cardId: string | null;
   isHost: boolean;
   onEndGame: () => void;
+  /**
+   * Phase 3.4: game-start transition variant chosen by server.
+   * Null when joining/refreshing mid-game (no transition to show).
+   */
+  transitionVariant: TransitionVariant | null;
 }
 
 /**
- * Phase 2.5: Tap-and-hold reveal screen.
+ * Phase 2.5 / 3.4: Tap-and-hold reveal screen.
  *
  * Default: card is FACE-DOWN. Player presses and holds on the card to reveal
  * their role; releasing flips it back. Tilt animation during the swap.
@@ -24,19 +30,30 @@ interface PlayingScreenProps {
  *
  * Tap-and-hold scope: ONLY inside the card. Buttons and header outside the
  * card don't trigger reveal.
+ *
+ * Phase 3.4: When `transitionVariant` is set, a fullscreen overlay plays an
+ * animation BEFORE the card UI becomes interactive. The overlay auto-dismisses
+ * when the variant duration elapses.
  */
 export function PlayingScreen({
   roomCode,
   cardId,
   isHost,
   onEndGame,
+  transitionVariant,
 }: PlayingScreenProps) {
   const card = cardId ? findCard(cardId) : undefined;
   const [showDetail, setShowDetail] = useState(false);
 
+  // Local state tracks whether the start transition is still playing.
+  // Init: if server told us about a variant, run it; otherwise skip (refresh case).
+  const [transitionActive, setTransitionActive] = useState<boolean>(
+    transitionVariant !== null,
+  );
+
   return (
     <div
-      className="flex-1 flex flex-col min-h-0 px-4 pt-5 pb-7 animate-fade-in"
+      className="flex-1 flex flex-col min-h-0 px-4 pt-5 pb-7 animate-fade-in relative"
       style={{
         // Phase 2.5 bug fix: tap-and-hold on text labels triggers Chrome's
         // text-selection menu (Lens, translate, copy). Disable text selection
@@ -125,6 +142,14 @@ export function PlayingScreen({
         card={showDetail && card ? card : null}
         onClose={() => setShowDetail(false)}
       />
+
+      {/* Phase 3.4: Game-start transition overlay (covers everything during animation) */}
+      {transitionActive && transitionVariant && (
+        <GameStartTransition
+          variant={transitionVariant}
+          onComplete={() => setTransitionActive(false)}
+        />
+      )}
     </div>
   );
 }

@@ -281,8 +281,12 @@ export default class LobbyServer implements Party.Server {
       if (cardId) this.sendTo(conn, { type: 'YOUR_CARD', cardId });
     }
 
-    // Broadcast phase change only — NO card information.
-    this.broadcastMessage({ type: 'GAME_STARTED' });
+    // Phase 3.4: pick a random transition variant so all clients see the same animation.
+    const variants = ['night', 'campfire', 'dealing'] as const;
+    const transitionVariant = variants[Math.floor(Math.random() * variants.length)]!;
+
+    // Broadcast phase change with the chosen transition — NO card information.
+    this.broadcastMessage({ type: 'GAME_STARTED', transitionVariant });
   }
 
   private async handleLeave(sessionId: SessionId): Promise<void> {

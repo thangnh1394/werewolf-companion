@@ -82,6 +82,7 @@ export function LobbyScreen() {
         cardId={context.yourCard}
         isHost={viewerIsHost}
         onEndGame={actions.endGame}
+        transitionVariant={context.transitionVariant}
       />
     );
   }

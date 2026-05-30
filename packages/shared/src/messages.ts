@@ -171,11 +171,24 @@ export const RoomClosedMessageSchema = z.object({
 export type RoomClosedMessage = z.infer<typeof RoomClosedMessageSchema>;
 
 /**
+ * Possible game-start transition variants. Server picks one at random when
+ * broadcasting GAME_STARTED so all players in the room see the same animation.
+ * Phase 3.4 feature.
+ */
+export const TransitionVariantSchema = z.enum(['night', 'campfire', 'dealing']);
+export type TransitionVariant = z.infer<typeof TransitionVariantSchema>;
+
+/**
  * Broadcast when the host starts the game. Carries NO card information —
- * cards are sent privately via YOUR_CARD. This only signals the phase change.
+ * cards are sent privately via YOUR_CARD. This only signals the phase change
+ * and which transition animation to play.
+ *
+ * `transitionVariant` is optional for backward compatibility with pre-Phase-3.4
+ * clients: old clients ignore it and skip the transition; new clients animate.
  */
 export const GameStartedMessageSchema = z.object({
   type: z.literal('GAME_STARTED'),
+  transitionVariant: TransitionVariantSchema.optional(),
 });
 export type GameStartedMessage = z.infer<typeof GameStartedMessageSchema>;
 

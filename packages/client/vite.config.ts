@@ -10,5 +10,15 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        // Split heavy/independent libs into their own chunks so the main app
+        // bundle stays small and these are cached separately across deploys.
+        manualChunks: {
+          framer: ['framer-motion'],
+          react: ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
   },
 });
