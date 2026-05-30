@@ -28,7 +28,19 @@ export function PlayingScreen({ roomCode, cardId }: PlayingScreenProps) {
   const [showDetail, setShowDetail] = useState(false);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 px-4 pt-5 pb-7 animate-fade-in">
+    <div
+      className="flex-1 flex flex-col min-h-0 px-4 pt-5 pb-7 animate-fade-in"
+      style={{
+        // Phase 2.5 bug fix: tap-and-hold on text labels triggers Chrome's
+        // text-selection menu (Lens, translate, copy). Disable text selection
+        // and the iOS/Android long-press callout on the entire playing screen.
+        // The "Xem chi tiết" button still works (it's a button, not text).
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none',
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {/* Sticky header */}
       <div className="shrink-0">
         <div className="flex items-center justify-between mb-1">

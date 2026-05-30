@@ -1,57 +1,59 @@
-# Card Back — Gemini Image Generation Prompt
+# Card Back — Gemini Image Generation Prompt (Portrait v2)
 
-> Generate the card back (mặt úp) shown when a player hasn't revealed their role yet. Must match the existing 15 card artwork theme: "Bàn gỗ kể chuyện" (forest dark + warm amber lantern light).
+> **CHANGE FROM v1:** Aspect ratio đổi từ 1:1 (square) sang **portrait ~5:7** (vertical, fit khung card aspect 0.7). Ảnh không bị crop/stretch khi đặt trong card frame.
 
 ## Primary prompt (copy-paste vào Gemini)
 
 ```
-A mysterious tarot-style card back design for a werewolf party game, viewed straight-on (flat, centered, symmetrical).
+A mysterious tarot-style card back design for a werewolf party game, viewed straight-on (flat, centered, symmetrical), portrait orientation (vertical card shape, aspect ratio approximately 5:7 or 2:3 — like a real playing card).
 
-Style: dark atmospheric digital illustration, painterly, cohesive with a moonlit forest storytelling theme.
+Style: dark atmospheric digital illustration, painterly, ornate gilded filigree, cohesive with a moonlit forest storytelling theme.
 
-Central motif: a glowing amber lantern OR a full moon partially hidden behind dark pine tree silhouettes, with subtle wolf imagery woven into the shadows.
+Central motif (vertically centered, upper-middle area): a glowing amber full moon with dark pine tree silhouettes in front of it, a small howling wolf silhouette on a cliff in the foreground, faint hanging lantern beside the moon.
 
-Color palette: deep forest green-black background (#1F2419), warm amber accents (#E89B3C), muted gold filigree border. Low saturation, high contrast, candle-lit mood.
+Border: thick symmetrical gilded filigree frame on all four edges (top, bottom, left, right), with ornate gold scrollwork, oak leaves, and subtle moon phase symbols at the midpoints of each edge. The border should completely surround the central artwork like a vintage tarot card. Top center has a small wolf paw print emblem; bottom center has a matching emblem (paws or claw).
 
-Composition: ornate symmetrical border frame (like a vintage playing card back), intricate but not cluttered, with a single focal emblem in the center. NO text, NO letters, NO numbers anywhere.
+Atmosphere: deep forest green-black background (#1F2419), warm amber moon glow (#E89B3C), muted aged-gold filigree details. Low saturation, candle-lit mysterious mood.
 
-Mood: secretive, mysterious, inviting — "hold to reveal your secret role". Premium board-game card aesthetic.
+Composition: PORTRAIT (taller than wide), with the central round emblem in the upper-middle portion of the card, ornate borders running top-to-bottom. NO text, NO letters, NO numbers anywhere.
 
-Square aspect ratio (1:1). Centered composition with breathing room around the central emblem.
+Mood: secretive, mysterious, inviting — "hold to reveal your secret role". Premium board-game card aesthetic, similar to high-quality tarot card backs or Magic: The Gathering card backs.
+
+Aspect ratio: 5:7 (portrait, tall card shape). NOT square.
 ```
 
-## Alternative prompt (nếu muốn đơn giản hơn)
+## Settings
 
-```
-A minimalist mysterious card back for a werewolf game. Centered glowing amber moon emblem over a dark forest-green background (#1F2419). Subtle geometric filigree border in muted gold (#E89B3C). Symmetrical, flat, straight-on view. No text or numbers. Dark, secretive, candle-lit mood. Square 1:1 aspect ratio. Premium tabletop card aesthetic.
-```
+- **Aspect ratio:** 5:7 hoặc 2:3 (portrait/tall) — KHÔNG square
+  - Nếu Gemini có option chọn: pick "portrait" hoặc "tall" hoặc "2:3"
+  - Nếu chỉ có 1:1 và 16:9: chọn 9:16 (portrait) rồi crop nhẹ
+- **Resolution:** 1024×1456 hoặc tương đương (target dimensions)
+- **Variations:** generate 3-4, pick best
+- **Reference image:** có thể upload card-back.webp cũ làm style reference
 
-## Settings recommendations
+## Vì sao đổi sang portrait
 
-- **Aspect ratio:** 1:1 (square) — match các card khác
-- **Số lượng generate:** 4 variations → pick cái đẹp nhất
-- **Nếu Gemini cho chỉnh:** ưu tiên cái có border đối xứng + emblem rõ ở center
+Card frame trong app dùng aspect-ratio 0.7 (cao 1.43× rộng — tỉ lệ bài tây). Ảnh 1:1 đặt trong khung dọc sẽ:
+- Bị crop trên/dưới (nếu object-fit: cover) → mất phần border filigree
+- Hoặc bị stretch méo (nếu object-fit: fill)
+- Hoặc có viền trống (nếu object-fit: contain)
+
+Ảnh portrait fit thẳng vào khung → giữ trọn vẹn composition + border filigree.
 
 ## Sau khi generate
 
-1. **Download** ảnh đẹp nhất
-2. **Optimize:** Squoosh.app → resize 400×400 → WebP 85% (target ≤33 KB)
-3. **Đặt tên:** `card-back.webp`
-4. **Move vào:** `packages/client/public/cards/card-back.webp`
-5. Code đã reference sẵn path này (tôi sẽ set trong Developer phase)
+1. **Download** ảnh đẹp nhất (vertical orientation)
+2. **Verify aspect ratio:** check dimensions phải gần với 5:7 (vd 800x1120, 1000x1400, etc.)
+3. **Send file cho tôi** trong chat — tôi sẽ:
+   - Optimize sang WebP với quality cao hơn để giữ filigree sharp
+   - **Target size: ~70-90 KB** (cao hơn rule 33 KB nhưng OK vì decorative + bạn đã accept)
+   - Replace card-back.webp
+   - Update RevealCard.tsx nếu cần điều chỉnh CSS để tận dụng portrait
 
-## Yêu cầu quan trọng
+## Yêu cầu vẫn giữ nguyên
 
-- ❌ **KHÔNG có text/chữ/số** trong ảnh (vì sẽ có text overlay "Giữ để xem" từ code)
-- ✅ **Đối xứng** — card back đẹp khi đối xứng (như bài thật)
-- ✅ **Center emblem rõ ràng** — moon/lantern làm focal point
-- ✅ **Dark theme** — phải hợp với #1F2419 background của app
-- ✅ **1:1 square** — cùng tỉ lệ với 15 card images
-
-## Tip: Đảm bảo consistency
-
-Nếu bạn còn nhớ prompt đã dùng để generate 15 card images (Phase 2.1), thêm style keywords tương tự vào đây để card back match phong cách. Ví dụ nếu 15 cards là "painterly illustration" thì giữ "painterly"; nếu là "flat vector" thì đổi sang "flat vector emblem".
-
-## Fallback nếu chưa có ảnh
-
-Trong khi chờ generate, code sẽ dùng placeholder SVG (lantern emblem) — app vẫn chạy được, chỉ là card back chưa đẹp như ý. Sau khi có `card-back.webp`, chỉ cần drop file vào `public/cards/` và redeploy.
+- KHÔNG có text/chữ/số
+- Đối xứng trục dọc
+- Border filigree đầy đủ 4 cạnh (top/bottom/left/right)
+- Dark theme match #1F2419 background
+- Portrait orientation (đây là điểm thay đổi chính)
