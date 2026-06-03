@@ -13,7 +13,6 @@
   "dependencies": {
     "@werewolf/shared": "*",
     "@xstate/react": "^5.0.0",
-    "framer-motion": "^12.40.0",
     "lucide-react": "^0.460.0",
     "partysocket": "^1.0.2",
     "qrcode.react": "^4.1.0",
