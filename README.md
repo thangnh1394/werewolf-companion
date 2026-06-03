@@ -1,35 +1,54 @@
 # Sói Đêm (Werewolf Companion)
 
-> Digital card dealer for in-person Vietnamese werewolf (ma sói) game sessions. Multi-device, realtime, runs entirely on Cloudflare's free tier.
+> Digital card dealer for in-person Vietnamese ma sói game sessions.
+> Multi-device, realtime, runs entirely on Cloudflare's free tier.
 
 ## Status
 
-**Phase 1 complete** — Foundation & Lobby System. Phase 2 (card dealing) and Phase 3 (polish) are next.
+**Production-ready.** Phases 1–3 complete. Phase 4 (GM Mode) planned in
+separate branch — see `docs/PHASE_4_DECISIONS.md`.
 
 ## What it does
 
-5–20 friends in the same room each open the app on their phone. One person creates a room with a 6-digit code, shares a QR/link with the others, and everyone joins their own player slot. When everyone presses "Sẵn sàng" (Ready), the host can start a game. (Phase 1 stops here with a placeholder; Phase 2 will deal random role cards.)
+5–20 friends in the same room each open the app on their phone. One person
+creates a room with a 6-digit code, shares a QR / link with the others, and
+everyone joins their own player slot. The host composes a deck (choosing which
+roles and how many of each), then deals — each player gets a private card
+visible only on their own phone via tap-and-hold reveal. After the in-person
+game finishes, the host ends the round and the deck is preserved for the next
+ván.
+
+Features:
+- 15 role cards with AI-generated artwork
+- 20 avatar set + customizable profile (name + avatar)
+- QR code share with expand-on-tap for physical scanning
+- Cinematic game-start transitions (3 random variants)
+- Card back tap-and-hold reveal with tilt animation
+- Full reconnect / refresh support
+- Privacy: card assignments never broadcast, only sent privately to the
+  assigned player
 
 ## Stack
 
 | Layer | Tech | Why |
 |---|---|---|
-| Frontend | Vite 6, React 18, TypeScript, Tailwind v4 | Mobile-first SPA, fast HMR, type-safe |
-| Realtime | PartyKit + `partysocket` (Cloudflare Durable Objects under the hood) | 1 room = 1 DO, hibernates when idle |
-| State machine | XState 5 | Connection phases (connecting → in_lobby → kicked/closed) |
-| Message validation | Zod | Shared schemas between client and server |
-| Hosting | Cloudflare Pages (FE) + PartyKit cloud-prem deploy (BE) | $0/year on free tier for our usage |
+| Frontend | Vite 6, React 18, TypeScript strict, Tailwind v4 | Mobile-first SPA |
+| Realtime | PartyKit + partysocket (Cloudflare Durable Objects) | 1 room = 1 DO |
+| State machine | XState 5 | Connection + game phases |
+| Validation | Zod | Shared schemas client ↔ server |
+| Hosting | Cloudflare Pages (FE) + PartyKit cloud (BE) | $0/year free tier |
 
 ## Project structure
 
 ```
 werewolf-companion/
-├── docs/                    Phase 0 decisions, BRIEF, PLAN, DESIGN
+├── .github/                       CI workflows
+├── docs/                          Architecture decisions + design reference
 ├── packages/
-│   ├── shared/              Zod schemas + types (used by both sides)
-│   ├── server/              PartyKit LobbyServer + state reducers + tests
-│   └── client/              React app
-└── .github/workflows/       CI + auto-deploy
+│   ├── shared/                    Zod schemas + types (used by both sides)
+│   ├── server/                    PartyKit LobbyServer + state reducers + tests
+│   └── client/                    React app + card/avatar/transition assets
+└── package.json                   workspace root
 ```
 
 ## Local development
@@ -45,7 +64,8 @@ npm run dev:server
 npm run dev:client
 ```
 
-The client will look for the PartyKit host at `localhost:1999` by default. To point at a deployed server, set `VITE_PARTYKIT_HOST` in `packages/client/.env.local`:
+The client looks for the PartyKit host at `localhost:1999` by default. To point
+at a deployed server, set `VITE_PARTYKIT_HOST` in `packages/client/.env.local`:
 
 ```env
 VITE_PARTYKIT_HOST=your-deploy.<username>.partykit.dev
@@ -54,29 +74,22 @@ VITE_PARTYKIT_HOST=your-deploy.<username>.partykit.dev
 ## Useful commands
 
 ```bash
-npm test                          # Run all tests
+npm test                          # Run all tests (52 passing)
 npm run type-check                # Type-check all packages
 npm run build                     # Build all packages
-npm run -w @werewolf/server test  # Just server tests (25 unit tests)
 ```
 
 ## Deployment
 
-See [DEPLOY.md](./DEPLOY.md) for full step-by-step deployment to Cloudflare.
-
-## Cost
-
-Estimated cost for our group (4-5 sessions/month, ~10 players, ~2-3 hours each): **$0/year**. Free tier limits are ~10,000× what we'll actually use. See `docs/PLAN.md` for the math.
+See [DEPLOY.md](./DEPLOY.md).
 
 ## Roadmap
 
-See [ROADMAP.md](./ROADMAP.md). Short version:
-
-- **Phase 1** ✅ Lobby system
-- **Phase 2** — Card dealing (main desk + room desk editor + "Bài của tôi" screen)
-- **Phase 3** — Polish (animations, accessibility, reconnect UX)
-- **Future** — Match history, custom roles, preset decks, PWA
+- ✅ Phase 1 — Lobby system
+- ✅ Phase 2 — Card dealing + gameplay loop
+- ✅ Phase 3 — Polish (avatars, transitions, role thumbnails, QR expand)
+- 🚧 Phase 4 — GM Mode (separate branch — see `docs/PHASE_4_DECISIONS.md`)
 
 ## License
 
-Private project. All rights reserved by the author.
+Private project. All rights reserved.

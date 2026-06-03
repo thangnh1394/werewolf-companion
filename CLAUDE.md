@@ -8,9 +8,13 @@
 
 ## Phase hiện tại
 
-**Phase 1 COMPLETE** — Foundation & Lobby System.
+**Phase 3 COMPLETE** — Production-ready. Phases 1–3 đã ship.
 
-Phase 2 (card dealing) và Phase 3 (polish) chưa bắt đầu.
+- Phase 1: Lobby system (room codes, ready check, kick, QR share)
+- Phase 2: 15 role cards, Room Desk Editor, dealing, tap-and-hold reveal, end-game loop
+- Phase 3: Avatars, profile editor, QR expand, role thumbnails, game-start transitions
+
+Phase 4 (GM Mode) sẽ được develop trên branch `phase-4-gm-mode`. Xem `docs/PHASE_4_DECISIONS.md`.
 
 ## Stack
 
@@ -25,9 +29,9 @@ Phase 2 (card dealing) và Phase 3 (polish) chưa bắt đầu.
 
 ```
 packages/
-├── shared/    Zod schemas + types (foundation)
-├── server/    PartyKit LobbyServer + state reducers + 25 tests
-└── client/    React app
+├── shared/    Zod schemas + types
+├── server/    PartyKit LobbyServer + state reducers + 52 tests
+└── client/    React app + cards/avatars/transitions assets
 ```
 
 ## Quy ước code
@@ -35,7 +39,7 @@ packages/
 - **Identifiers (variables, functions, files, types):** English only
 - **UI strings:** Vietnamese
 - **TypeScript:** strict mode, no `any`, prefer discriminated unions
-- **Components:** Feature folders (`components/home/`, `components/lobby/`, `components/ui/`)
+- **Components:** Feature folders (`components/home/`, `components/lobby/`, `components/game/`, `components/ui/`)
 - **State logic:** Pure reducers in server, XState machine in client
 - **WebSocket messages:** Always go through Zod schemas in `packages/shared/src/messages.ts`
 
@@ -44,13 +48,14 @@ packages/
 | File | Purpose |
 |---|---|
 | `docs/PHASE_0_DECISIONS.md` | Locked decisions từ Phase 0 — KHÔNG đổi |
-| `docs/BRIEF.md` | Phase 1 scope + 10 acceptance criteria |
-| `docs/PLAN.md` | Tech stack chi tiết, file tree, risks |
+| `docs/PHASE_2_DECISIONS.md` | Card system architecture decisions |
+| `docs/PHASE_4_DECISIONS.md` | GM Mode planning + TODOs for Phase 4 |
+| `docs/BRIEF.md` | Original project brief (historical) |
+| `docs/PLAN.md` | Tech stack chi tiết, file tree |
 | `docs/DESIGN.md` | Design tokens, microcopy, layout patterns |
-| `docs/TEST_REPORT.md` | Manual test plan |
-| `ROADMAP.md` | Phase 2/3/Future scope |
-| `HANDSON_DEPLOY.md` | Step-by-step deploy guide |
-| `DEPLOY.md` | Reference deploy doc |
+| `ROADMAP.md` | Phase summary + Phase 4 scope |
+| `DEPLOY.md` | Deploy guide (Cloudflare Pages + PartyKit) |
+| `CHANGELOG.md` | Feature history per phase |
 
 ## Commands cheat sheet
 
@@ -61,7 +66,7 @@ npm run dev:client         # Vite dev server (port 5173)
 
 # Verify
 npm run type-check         # Type-check all packages
-npm test                   # Run server unit tests (25 tests)
+npm test                   # Run server unit tests (52 tests)
 npm run build              # Build all packages
 
 # Deploy
@@ -69,19 +74,13 @@ cd packages/server && npm run deploy   # Deploy PartyKit server
 # Client deploy via Cloudflare Pages GitHub integration (auto)
 ```
 
-## Khi user hỏi về Phase 2
+## Khi user hỏi về Phase 4 (GM Mode)
 
-Phase 2 scope ở `ROADMAP.md`. Quy trình: invoke `/app-creator` với prompt phase 2, team 6 agent (PM/Architect/Designer/Developer/QA/PO) sẽ design + build trên foundation hiện tại. Không phá vỡ Phase 0 decisions.
-
-Các quyết định lớn cho Phase 2 (deferred từ Phase 0):
-- Card images: bundled trong client, ~10 cards initial roles (Sói, Dân, Tiên tri, Bảo vệ, Phù thủy, Thợ săn)
-- Card reveal: tap-and-hold để xem (anti over-shoulder peek), release để úp lại
-- Chủ phòng cũng là player thường (nhận bài random như mọi người)
-- Server-side shuffle, private channel `YOUR_CARD` per session (KHÔNG broadcast)
+Phase 4 scope và decisions ở `docs/PHASE_4_DECISIONS.md`. Development trên branch `phase-4-gm-mode`, không merge vào `main` cho đến khi complete.
 
 ## Khi user gặp lỗi deploy
 
-Tham khảo `HANDSON_DEPLOY.md` → Phase F (Troubleshooting). Common issues:
+Tham khảo `DEPLOY.md` → Troubleshooting section. Common issues:
 1. `VITE_PARTYKIT_HOST` set sai (có `https://` prefix)
 2. PartyKit Miniflare dev local fail (network restriction → test direct trên cloud)
 3. Cloudflare Pages monorepo workspace not resolving
@@ -89,9 +88,10 @@ Tham khảo `HANDSON_DEPLOY.md` → Phase F (Troubleshooting). Common issues:
 
 ## Khi cần edit code
 
-- Server logic: `packages/server/src/lobby/lobbyState.ts` (pure reducers — test trước khi edit)
+- Server state logic: `packages/server/src/lobby/lobbyState.ts` (pure reducers — test trước khi edit)
 - Server WebSocket handling: `packages/server/src/server.ts`
 - Client lobby UI: `packages/client/src/components/lobby/LobbyScreen.tsx`
+- Client game screen: `packages/client/src/components/game/`
 - WebSocket protocol: `packages/shared/src/messages.ts` (đổi schema = đổi cả 2 phía)
 
 Sau mọi edit, chạy:
@@ -101,7 +101,7 @@ npm run type-check && npm test
 
 ## Khi user muốn revert Phase 0 decisions
 
-Hỏi lại confirmation rõ ràng. Phase 0 decisions được lock có lý do — đổi sẽ ảnh hưởng cả Phase 2/3.
+Hỏi lại confirmation rõ ràng. Phase 0 decisions được lock có lý do — đổi sẽ ảnh hưởng Phase 4.
 
 ## Tone với user
 

@@ -4,16 +4,14 @@ import { CARDS } from '@werewolf/shared';
 
 /**
  * About / Credits screen — accessible from home page footer.
- * Lists Pexels photographer attributions and project metadata.
+ * Lists asset credits and project metadata.
  *
  * Follows Golden Rule 1: sticky header + scrollable body.
  */
 export function AboutScreen() {
   const navigate = useNavigate();
 
-  // Cards with photographer attribution. Once user adds real Pexels photos,
-  // these will populate. Until then, the section will be empty (or show a note).
-  const credited = CARDS.filter((c) => c.photographer);
+  const creditedPhotos = CARDS.filter((c) => c.photographer);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 animate-fade-in">
@@ -41,58 +39,57 @@ export function AboutScreen() {
           <h2 className="text-text-primary text-base font-medium mb-2">
             Sói Đêm
           </h2>
-          <p className="text-text-secondary text-sm leading-relaxed mb-2">
+          <p className="text-text-secondary text-sm leading-relaxed">
             Ứng dụng chia bài ma sói qua điện thoại — không cần đem bộ bài vật lý.
             Mỗi người chơi dùng điện thoại riêng, chủ phòng tạo phòng và chia sẻ
-            code/QR cho bạn bè.
-          </p>
-          <p className="text-text-secondary text-sm leading-relaxed">
-            Mã nguồn mở. Miễn phí. Không quảng cáo.
+            code/QR cho bạn bè. Miễn phí. Không quảng cáo.
           </p>
         </section>
 
         <section className="mb-6">
           <h2 className="text-text-primary text-base font-medium mb-3">
-            Tín dụng ảnh
+            Tín dụng
           </h2>
-          {credited.length === 0 ? (
-            <div className="bg-bg-surface border border-bg-surface-hi rounded-[12px] p-4">
-              <p className="text-text-secondary text-[13px] leading-relaxed m-0">
-                Ảnh các thẻ bài hiện tại là placeholder. Khi triển khai bản chính
-                thức, các ảnh sẽ được nguồn từ Pexels (miễn phí cho mục đích thương
-                mại). Tín dụng nhiếp ảnh gia sẽ hiển thị tại đây.
-              </p>
-            </div>
-          ) : (
-            <ul className="list-none p-0 m-0 space-y-2">
-              {credited.map((card) => (
-                <li
-                  key={card.id}
-                  className="bg-bg-surface border border-bg-surface-hi rounded-[10px] px-3.5 py-2.5 flex items-center justify-between"
-                >
-                  <div className="min-w-0">
-                    <div className="text-text-primary text-sm font-medium truncate">
-                      {card.name}
-                    </div>
-                    <div className="text-text-secondary text-[11px] truncate">
-                      {card.photographer}
-                    </div>
+          <ul className="list-none p-0 m-0 space-y-2">
+            <li className="bg-bg-surface border border-bg-surface-hi rounded-[10px] px-3.5 py-2.5">
+              <div className="text-text-primary text-sm font-medium">Tranh minh họa thẻ bài</div>
+              <div className="text-text-secondary text-[11px]">AI-generated — Google ImageFX</div>
+            </li>
+            <li className="bg-bg-surface border border-bg-surface-hi rounded-[10px] px-3.5 py-2.5">
+              <div className="text-text-primary text-sm font-medium">Avatar nhân vật</div>
+              <div className="text-text-secondary text-[11px]">AI-generated — Google ImageFX</div>
+            </li>
+            <li className="bg-bg-surface border border-bg-surface-hi rounded-[10px] px-3.5 py-2.5">
+              <div className="text-text-primary text-sm font-medium">Video chuyển cảnh</div>
+              <div className="text-text-secondary text-[11px]">AI-generated — Google Veo · CSS animation</div>
+            </li>
+            {creditedPhotos.map((card) => (
+              <li
+                key={card.id}
+                className="bg-bg-surface border border-bg-surface-hi rounded-[10px] px-3.5 py-2.5 flex items-center justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="text-text-primary text-sm font-medium truncate">
+                    {card.name}
                   </div>
-                  {card.photoUrl && (
-                    <a
-                      href={card.photoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`Xem ảnh gốc của ${card.photographer} trên Pexels`}
-                      className="text-accent shrink-0 active:scale-95"
-                    >
-                      <ExternalLink size={14} aria-hidden />
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+                  <div className="text-text-secondary text-[11px] truncate">
+                    {card.photographer} · Pexels
+                  </div>
+                </div>
+                {card.photoUrl && (
+                  <a
+                    href={card.photoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Xem ảnh gốc của ${card.photographer} trên Pexels`}
+                    className="text-accent shrink-0 active:scale-95"
+                  >
+                    <ExternalLink size={14} aria-hidden />
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section className="mb-6">
