@@ -7,6 +7,7 @@ interface PlayerListProps {
   selfSessionId: SessionId | null;
   hostSessionId: SessionId | null;
   onKick?: (targetSessionId: SessionId) => void;
+  onTransferGm?: (targetSessionId: SessionId) => void;
 }
 
 /**
@@ -44,6 +45,7 @@ export function PlayerList({
   selfSessionId,
   hostSessionId,
   onKick,
+  onTransferGm,
 }: PlayerListProps) {
   const viewerIsHost = selfSessionId !== null && selfSessionId === hostSessionId;
 
@@ -59,6 +61,7 @@ export function PlayerList({
       isSelf={p.sessionId === selfSessionId}
       viewerIsHost={viewerIsHost}
       onKick={onKick ? () => onKick(p.sessionId) : undefined}
+      onTransferGm={onTransferGm ? () => onTransferGm(p.sessionId) : undefined}
     />
   );
 

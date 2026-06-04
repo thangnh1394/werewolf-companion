@@ -8,6 +8,7 @@ import { useLobby } from '../../hooks/useLobby';
 import { ShareRoom } from './ShareRoom';
 import { PlayerList } from './PlayerList';
 import { KickConfirmDialog } from './KickConfirmDialog';
+import { TransferGmConfirmDialog } from './TransferGmConfirmDialog';
 import { RoomDeskPreview } from './RoomDeskPreview';
 import { MainDeskScreen } from '../cards/MainDeskScreen';
 import { RoomDeskEditor } from '../cards/RoomDeskEditor';
@@ -40,6 +41,7 @@ export function LobbyScreen() {
   });
 
   const [pendingKick, setPendingKick] = useState<PublicPlayer | null>(null);
+  const [pendingTransferGm, setPendingTransferGm] = useState<PublicPlayer | null>(null);
   const [showMainDesk, setShowMainDesk] = useState(false);
   const [showRoomDeskEditor, setShowRoomDeskEditor] = useState(false);
   const [startErrorToast, setStartErrorToast] = useState<{
@@ -74,6 +76,12 @@ export function LobbyScreen() {
     [context.roomDesk],
   );
 
+  // Phase 4.1: GM is excluded from card dealing — deck must match non-GM player count.
+  const nonGmCount = useMemo(
+    () => context.players.filter((p) => !p.isHost).length,
+    [context.players],
+  );
+
   // Phase 2.4: when game is playing, show the dealt-card screen.
   if (phase === 'playing') {
     return (
@@ -106,7 +114,8 @@ export function LobbyScreen() {
   const enoughPlayers = totalCount >= MIN_PLAYERS;
   const allReady = totalCount > 0 && readyCount === totalCount;
 
-  const deckMatched = deckSize === totalCount && totalCount > 0;
+  // Phase 4.1: deck must match non-GM player count, not total.
+  const deckMatched = nonGmCount > 0 && deckSize === nonGmCount;
   const canStart = enoughPlayers && allReady && deckMatched;
 
   const handleLeave = () => {
@@ -116,11 +125,18 @@ export function LobbyScreen() {
   };
 
   const handleStartGame = () => {
-    if (deckSize !== totalCount) {
-      setStartErrorToast({ expected: totalCount, actual: deckSize });
+    if (deckSize !== nonGmCount) {
+      setStartErrorToast({ expected: nonGmCount, actual: deckSize });
       return;
     }
     actions.startGame();
+  };
+
+  const handleTransferGmConfirm = () => {
+    if (pendingTransferGm) {
+      actions.transferGm(pendingTransferGm.sessionId);
+      setPendingTransferGm(null);
+    }
   };
 
   const handleIncrement = (cardId: string) => {
@@ -225,6 +241,14 @@ export function LobbyScreen() {
                 }
               : undefined
           }
+          onTransferGm={
+            viewerIsHost
+              ? (targetId) => {
+                  const target = context.players.find((p) => p.sessionId === targetId);
+                  if (target) setPendingTransferGm(target);
+                }
+              : undefined
+          }
         />
       </div>
 
@@ -250,7 +274,7 @@ export function LobbyScreen() {
               <p className="text-text-secondary text-[11px] text-center mt-2">
                 {!enoughPlayers || !allReady
                   ? 'Khi tất cả sẵn sàng, bạn có thể bắt đầu'
-                  : `Cần đúng ${totalCount} thẻ trong bộ bài (hiện ${deckSize})`}
+                  : `Cần đúng ${nonGmCount} thẻ trong bộ bài (hiện ${deckSize})`}
               </p>
             )}
           </>
@@ -273,12 +297,19 @@ export function LobbyScreen() {
         onCancel={() => setPendingKick(null)}
       />
 
+      <TransferGmConfirmDialog
+        open={pendingTransferGm !== null}
+        targetName={pendingTransferGm?.displayName ?? ''}
+        onConfirm={handleTransferGmConfirm}
+        onCancel={() => setPendingTransferGm(null)}
+      />
+
       {showMainDesk && <MainDeskScreen onClose={() => setShowMainDesk(false)} />}
 
       {showRoomDeskEditor && viewerIsHost && (
         <RoomDeskEditor
           roomDesk={context.roomDesk}
-          playerCount={totalCount}
+          playerCount={nonGmCount}
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
           onClose={() => setShowRoomDeskEditor(false)}

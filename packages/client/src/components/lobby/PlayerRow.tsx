@@ -5,12 +5,13 @@ import { Avatar } from '../ui/Avatar';
 interface PlayerRowProps {
   player: PublicPlayer;
   isSelf: boolean;
-  /** True if the local viewer is the host (shows kick button on non-self rows) */
+  /** True if the local viewer is the GM (shows action buttons on non-self rows) */
   viewerIsHost: boolean;
   onKick?: () => void;
+  onTransferGm?: () => void;
 }
 
-export function PlayerRow({ player, isSelf, viewerIsHost, onKick }: PlayerRowProps) {
+export function PlayerRow({ player, isSelf, viewerIsHost, onKick, onTransferGm }: PlayerRowProps) {
   return (
     <div
       className={[
@@ -44,6 +45,16 @@ export function PlayerRow({ player, isSelf, viewerIsHost, onKick }: PlayerRowPro
           <span className="text-text-secondary text-[11px] italic px-2.5 py-1">
             Đang nghĩ...
           </span>
+        )}
+        {viewerIsHost && !isSelf && !player.isHost && onTransferGm && (
+          <button
+            type="button"
+            onClick={onTransferGm}
+            aria-label={`Trao quyền quản trò cho ${player.displayName}`}
+            className="bg-transparent border border-bg-surface-hi rounded-[6px] px-2 py-1 text-accent text-[11px] font-medium inline-flex items-center gap-1 active:scale-90"
+          >
+            <Crown size={11} aria-hidden /> Trao quản trò
+          </button>
         )}
         {viewerIsHost && !isSelf && onKick && (
           <button
