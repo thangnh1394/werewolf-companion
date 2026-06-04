@@ -4,7 +4,7 @@ import type {
   SessionId,
   DisplayName,
 } from '@werewolf/shared';
-import { MAX_PLAYERS } from '@werewolf/shared';
+import { MAX_PLAYERS, MIN_PLAYERS } from '@werewolf/shared';
 import { cryptoShuffle, type ShuffleFn } from './shuffle.js';
 
 /**
@@ -218,9 +218,9 @@ export function removePlayer(state: LobbyState, sessionId: SessionId): LobbyStat
 }
 
 /**
- * Validates whether the host can start the game right now.
- * Phase 1 rule: minimum 5 players, all must be ready (host auto-ready).
- * Phase 2.3 added: room desk card count must match player count.
+ * Validates whether the GM can start the game right now.
+ * Phase 4.1: minimum 6 players total, all non-GM must be ready.
+ * Deck size must match non-GM player count (GM is excluded from dealing).
  */
 export type CanStartResult =
   | { ok: true }
@@ -238,14 +238,13 @@ export function canStartGame(
   if (state.phase === 'playing') return { ok: false, reason: 'already_playing' };
 
   const players = Array.from(state.players.values());
-  if (players.length < 5) return { ok: false, reason: 'not_enough_players' };
-  const nonHostPlayers = players.filter((p) => p.sessionId !== state.hostSessionId);
-  if (!nonHostPlayers.every((p) => p.isReady)) return { ok: false, reason: 'not_all_ready' };
+  if (players.length < MIN_PLAYERS) return { ok: false, reason: 'not_enough_players' };
+  const nonGmPlayers = players.filter((p) => p.sessionId !== state.hostSessionId);
+  if (!nonGmPlayers.every((p) => p.isReady)) return { ok: false, reason: 'not_all_ready' };
 
   const deckSize = getDeckSize(state);
-  const playerCount = players.length;
-  if (deckSize !== playerCount) {
-    return { ok: false, reason: 'deck_mismatch', expected: playerCount, actual: deckSize };
+  if (deckSize !== nonGmPlayers.length) {
+    return { ok: false, reason: 'deck_mismatch', expected: nonGmPlayers.length, actual: deckSize };
   }
 
   return { ok: true };
@@ -303,19 +302,61 @@ export function dealCards(
     for (let i = 0; i < count; i++) flat.push(cardId);
   }
 
-  const players = getPlayersList(state); // ordered by joinedAt
-  if (flat.length !== players.length) {
+  // GM is excluded from dealing — only non-GM players receive cards.
+  const nonGmPlayers = getPlayersList(state).filter(
+    (p) => p.sessionId !== state.hostSessionId,
+  );
+  if (flat.length !== nonGmPlayers.length) {
     // Malformed — don't deal. Caller already validated, this is defense in depth.
     return state;
   }
 
   const shuffled = shuffle(flat);
   const assignments = new Map<SessionId, string>();
-  players.forEach((p, i) => {
+  nonGmPlayers.forEach((p, i) => {
     assignments.set(p.sessionId, shuffled[i]!);
   });
 
   return { ...state, phase: 'playing', assignments };
+}
+
+/**
+ * GM-only action: transfer the GM role to another player.
+ * Only valid during lobby phase. The old GM loses isHost and isReady;
+ * the new GM gains both (mirrors the auto-ready behavior from addPlayer).
+ */
+export type TransferGmResult =
+  | { ok: true; state: LobbyState; oldGm: PublicPlayer; newGm: PublicPlayer }
+  | {
+      ok: false;
+      reason: 'not_host' | 'target_not_found' | 'cannot_transfer_to_self' | 'wrong_phase';
+    };
+
+export function transferGm(
+  state: LobbyState,
+  args: { requesterId: SessionId; targetId: SessionId },
+): TransferGmResult {
+  if (state.phase !== 'lobby') return { ok: false, reason: 'wrong_phase' };
+  if (state.hostSessionId !== args.requesterId) return { ok: false, reason: 'not_host' };
+  if (args.requesterId === args.targetId) return { ok: false, reason: 'cannot_transfer_to_self' };
+
+  const currentGm = state.players.get(args.requesterId);
+  const target = state.players.get(args.targetId);
+  if (!currentGm || !target) return { ok: false, reason: 'target_not_found' };
+
+  const updatedOldGm: PublicPlayer = { ...currentGm, isHost: false, isReady: false };
+  const updatedNewGm: PublicPlayer = { ...target, isHost: true, isReady: true };
+
+  const players = new Map(state.players);
+  players.set(args.requesterId, updatedOldGm);
+  players.set(args.targetId, updatedNewGm);
+
+  return {
+    ok: true,
+    state: { ...state, players, hostSessionId: args.targetId },
+    oldGm: updatedOldGm,
+    newGm: updatedNewGm,
+  };
 }
 
 /**
