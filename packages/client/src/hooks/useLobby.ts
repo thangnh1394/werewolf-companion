@@ -121,6 +121,11 @@ export function useLobby({ roomCode, displayName, isHost, avatarId }: UseLobbyAr
     if (s) sendMessage(s, { type: 'END_GAME' });
   }, []);
 
+  const transferGm = useCallback((targetSessionId: string) => {
+    const s = socketRef.current;
+    if (s) sendMessage(s, { type: 'TRANSFER_GM', targetSessionId: targetSessionId as SessionId });
+  }, []);
+
   return {
     phase: state.value as
       | 'connecting'
@@ -131,7 +136,7 @@ export function useLobby({ roomCode, displayName, isHost, avatarId }: UseLobbyAr
       | 'room_closed'
       | 'playing',
     context: state.context,
-    actions: { setReady, kickPlayer, startGame, leave, setCardCount, endGame },
+    actions: { setReady, kickPlayer, startGame, leave, setCardCount, endGame, transferGm },
     sessionId,
   };
 }
