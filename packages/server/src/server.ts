@@ -21,6 +21,7 @@ import {
   removePlayer,
   setCardCount,
   setPlayerReady,
+  transferGm,
 } from './lobby/lobbyState.js';
 
 /**
@@ -140,6 +141,14 @@ export default class LobbyServer implements Party.Server {
           return;
         }
         await this.handleEndGame(data.sessionId);
+        return;
+
+      case 'TRANSFER_GM':
+        if (!data) {
+          sender.close(1008, 'not_joined');
+          return;
+        }
+        await this.handleTransferGm(data.sessionId, msg.targetSessionId);
         return;
     }
   }
@@ -323,6 +332,18 @@ export default class LobbyServer implements Party.Server {
       type: 'ROOM_DESK_UPDATED',
       deck: deckAsRecord(this.lobby),
     });
+  }
+
+  private async handleTransferGm(requesterId: SessionId, targetId: SessionId): Promise<void> {
+    const result = transferGm(this.lobby, { requesterId, targetId });
+    if (!result.ok) return;
+
+    this.lobby = result.state;
+    await this.persistState();
+    await this.touchActivity();
+
+    this.broadcastMessage({ type: 'PLAYER_UPDATED', player: result.oldGm });
+    this.broadcastMessage({ type: 'PLAYER_UPDATED', player: result.newGm });
   }
 
   /**

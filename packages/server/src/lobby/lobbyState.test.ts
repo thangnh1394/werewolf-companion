@@ -14,6 +14,7 @@ import {
   removePlayer,
   setCardCount,
   setPlayerReady,
+  transferGm,
 } from './lobbyState.js';
 import { cryptoShuffle } from './shuffle.js';
 
@@ -343,19 +344,18 @@ describe('canStartGame', () => {
       })).state;
       state = setPlayerReady(state, sid, true)!.state;
     }
-    // Phase 2.3: deck must match player count for canStartGame to succeed.
-    // Fill with `n` villagers to make deck size === player count.
-    state = setCardCount(state, 'villager', n);
+    // Phase 4.1: deck must match NON-GM player count (n-1) for canStartGame to succeed.
+    state = setCardCount(state, 'villager', n - 1);
     return { state, hostId };
   };
 
-  it('allows start when 5 players are all ready and requester is host', () => {
-    const { state, hostId } = buildReadyLobby(5);
+  it('allows start when 6 players are all ready and requester is host', () => {
+    const { state, hostId } = buildReadyLobby(6);
     expect(canStartGame(state, hostId).ok).toBe(true);
   });
 
-  it('rejects when fewer than 5 players', () => {
-    const { state, hostId } = buildReadyLobby(4);
+  it('rejects when fewer than 6 players', () => {
+    const { state, hostId } = buildReadyLobby(5);
     const r = canStartGame(state, hostId);
     expect(r.ok).toBe(false);
     if (r.ok) return;
@@ -372,7 +372,8 @@ describe('canStartGame', () => {
       now: NOW,
     })).state;
     state = setPlayerReady(state, hostId, true)!.state;
-    for (let i = 1; i < 5; i++) {
+    // Add 5 non-GM players (6 total) but don't mark them ready
+    for (let i = 1; i < 6; i++) {
       const sid = uuid();
       state = mustAdd(addPlayer(state, {
         sessionId: sid,
@@ -380,7 +381,6 @@ describe('canStartGame', () => {
         isHost: false,
         now: NOW + i,
       })).state;
-      // Don't mark them ready
     }
     const r = canStartGame(state, hostId);
     expect(r.ok).toBe(false);
@@ -389,7 +389,7 @@ describe('canStartGame', () => {
   });
 
   it('rejects when requester is not host', () => {
-    const { state } = buildReadyLobby(5);
+    const { state } = buildReadyLobby(6);
     const r = canStartGame(state, uuid());
     expect(r.ok).toBe(false);
     if (r.ok) return;
@@ -397,7 +397,7 @@ describe('canStartGame', () => {
   });
 
   it('rejects when already playing', () => {
-    let { state, hostId } = buildReadyLobby(5);
+    let { state, hostId } = buildReadyLobby(6);
     state = { ...state, phase: 'playing' };
     const r = canStartGame(state, hostId);
     expect(r.ok).toBe(false);
@@ -586,9 +586,9 @@ describe('canStartGame with deck validation', () => {
     return { state, hostId };
   };
 
-  it('rejects when deckSize !== playerCount with deck_mismatch reason', () => {
-    let { state, hostId } = buildBaseLobby(5);
-    // Only 3 cards for 5 players
+  it('rejects when deckSize !== nonGmCount with deck_mismatch reason', () => {
+    // 6 players (1 GM + 5 non-GM), deck = 3 — mismatches non-GM count of 5
+    let { state, hostId } = buildBaseLobby(6);
     state = setCardCount(state, 'villager', 3);
     const r = canStartGame(state, hostId);
     expect(r.ok).toBe(false);
@@ -597,6 +597,7 @@ describe('canStartGame with deck validation', () => {
   });
 
   it('includes expected/actual counts in deck_mismatch result', () => {
+    // 8 players (1 GM + 7 non-GM), deck = 5 — expected = 7 non-GM, actual = 5
     let { state, hostId } = buildBaseLobby(8);
     state = setCardCount(state, 'villager', 3);
     state = setCardCount(state, 'werewolf', 2);
@@ -604,15 +605,16 @@ describe('canStartGame with deck validation', () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     if (r.reason !== 'deck_mismatch') return;
-    expect(r.expected).toBe(8);
+    expect(r.expected).toBe(7);
     expect(r.actual).toBe(5);
   });
 
-  it('allows start when deckSize === playerCount with all ready (multi-card deck)', () => {
+  it('allows start when deckSize === nonGmCount with all ready (multi-card deck)', () => {
+    // 6 players (1 GM + 5 non-GM), deck = 5 cards — matches non-GM count
     let { state, hostId } = buildBaseLobby(6);
     state = setCardCount(state, 'werewolf', 2);
     state = setCardCount(state, 'seer', 1);
-    state = setCardCount(state, 'villager', 3);
+    state = setCardCount(state, 'villager', 2);
     expect(canStartGame(state, hostId).ok).toBe(true);
   });
 });
@@ -645,6 +647,7 @@ describe('dealCards', () => {
   // Reverse shuffle for predictable reordering
   const reverse = <T,>(a: T[]): T[] => [...a].reverse();
 
+  // ids[0] is always GM (isHost=true); ids[1..n-1] are non-GM players.
   const buildDealtLobby = (n: number, deck: Record<string, number>) => {
     let state = createEmptyLobby('482915');
     const ids: string[] = [];
@@ -664,51 +667,60 @@ describe('dealCards', () => {
     return { state, ids };
   };
 
-  it('assigns one card to each player', () => {
-    const { state } = buildDealtLobby(5, { villager: 5 });
+  it('assigns one card to each non-GM player', () => {
+    // 6 total (1 GM + 5 non-GM), deck = 5
+    const { state } = buildDealtLobby(6, { villager: 5 });
     const dealt = dealCards(state, identity);
     expect(dealt.assignments.size).toBe(5);
   });
 
   it('dealt multiset equals deck composition', () => {
-    const { state } = buildDealtLobby(5, { werewolf: 2, villager: 3 });
+    // 6 total (1 GM + 5 non-GM), deck = 5
+    const { state } = buildDealtLobby(6, { werewolf: 2, villager: 3 });
     const dealt = dealCards(state, identity);
     const cards = Array.from(dealt.assignments.values()).sort();
     expect(cards).toEqual(['villager', 'villager', 'villager', 'werewolf', 'werewolf']);
   });
 
   it('respects card counts (2 werewolves → exactly 2 players)', () => {
-    const { state } = buildDealtLobby(6, { werewolf: 2, villager: 4 });
+    // 6 total (1 GM + 5 non-GM), deck = 5
+    const { state } = buildDealtLobby(6, { werewolf: 2, villager: 3 });
     const dealt = dealCards(state, identity);
     const wolves = Array.from(dealt.assignments.values()).filter((c) => c === 'werewolf');
     expect(wolves).toHaveLength(2);
   });
 
   it('transitions phase to playing', () => {
-    const { state } = buildDealtLobby(5, { villager: 5 });
+    // 6 total (1 GM + 5 non-GM), deck = 5
+    const { state } = buildDealtLobby(6, { villager: 5 });
     const dealt = dealCards(state, identity);
     expect(dealt.phase).toBe('playing');
   });
 
   it('uses injected shuffle deterministically', () => {
-    const { state, ids } = buildDealtLobby(3, { werewolf: 1, seer: 1, villager: 1 });
+    // 4 total (1 GM + 3 non-GM), deck = 3
+    // ids[0] = GM (no card), ids[1..3] = non-GM
+    const { state, ids } = buildDealtLobby(4, { werewolf: 1, seer: 1, villager: 1 });
     // flat order: [werewolf, seer, villager] (roomDesk insertion order)
     // reverse → [villager, seer, werewolf]
-    // players ordered by joinedAt: ids[0], ids[1], ids[2]
+    // non-GM players ordered by joinedAt: ids[1], ids[2], ids[3]
     const dealt = dealCards(state, reverse);
-    expect(dealt.assignments.get(ids[0]!)).toBe('villager');
-    expect(dealt.assignments.get(ids[1]!)).toBe('seer');
-    expect(dealt.assignments.get(ids[2]!)).toBe('werewolf');
+    expect(dealt.assignments.get(ids[0]!)).toBeUndefined(); // GM gets no card
+    expect(dealt.assignments.get(ids[1]!)).toBe('villager');
+    expect(dealt.assignments.get(ids[2]!)).toBe('seer');
+    expect(dealt.assignments.get(ids[3]!)).toBe('werewolf');
   });
 
-  it('assignments.size === players.size', () => {
-    const { state } = buildDealtLobby(7, { werewolf: 2, seer: 1, villager: 4 });
+  it('assignments.size === non-GM player count', () => {
+    // 7 total (1 GM + 6 non-GM), deck = 6
+    const { state } = buildDealtLobby(7, { werewolf: 2, seer: 1, villager: 3 });
     const dealt = dealCards(state, identity);
-    expect(dealt.assignments.size).toBe(state.players.size);
+    expect(dealt.assignments.size).toBe(6);
   });
 
-  it('returns unchanged if deck size != player count', () => {
-    const { state } = buildDealtLobby(5, { villager: 3 }); // 3 cards, 5 players
+  it('returns unchanged if deck size != non-GM count', () => {
+    // 5 total (1 GM + 4 non-GM), deck = 3 — 3 ≠ 4 → no deal
+    const { state } = buildDealtLobby(5, { villager: 3 });
     const dealt = dealCards(state, identity);
     expect(dealt.phase).toBe('lobby'); // not dealt
     expect(dealt.assignments.size).toBe(0);
@@ -721,7 +733,7 @@ describe('endGame', () => {
   // Identity shuffle for deterministic deal-then-end tests
   const identity = <T,>(a: T[]): T[] => [...a];
 
-  /** Build a 5-player lobby, all ready, deck filled, dealt → playing. */
+  /** Build a 6-player lobby (1 GM + 5 non-GM), all ready, deck = 5 cards, dealt → playing. */
   const buildPlayingLobby = () => {
     let state = createEmptyLobby('482915');
     const hostId = uuid();
@@ -733,7 +745,7 @@ describe('endGame', () => {
     })).state;
     state = setPlayerReady(state, hostId, true)!.state;
     const playerIds: string[] = [hostId];
-    for (let i = 1; i < 5; i++) {
+    for (let i = 1; i < 6; i++) {
       const sid = uuid();
       playerIds.push(sid);
       state = mustAdd(addPlayer(state, {
@@ -744,6 +756,7 @@ describe('endGame', () => {
       })).state;
       state = setPlayerReady(state, sid, true)!.state;
     }
+    // 5 cards for 5 non-GM players
     state = setCardCount(state, 'werewolf', 2);
     state = setCardCount(state, 'villager', 3);
     state = dealCards(state, identity);
@@ -759,7 +772,7 @@ describe('endGame', () => {
 
   it('clears assignments completely', () => {
     const { state } = buildPlayingLobby();
-    expect(state.assignments.size).toBe(5);
+    expect(state.assignments.size).toBe(5); // 5 non-GM players dealt
     const ended = endGame(state);
     expect(ended.assignments.size).toBe(0);
   });
@@ -795,5 +808,92 @@ describe('endGame', () => {
     endGame(state);
     expect(state.phase).toBe(phaseBefore);
     expect(state.assignments.size).toBe(assignmentsSizeBefore);
+  });
+});
+
+// ---------- Phase 4.1: GM Transfer ----------
+
+describe('transferGm', () => {
+  const buildLobbyWithPlayers = (n: number) => {
+    let state = createEmptyLobby('482915');
+    const hostId = uuid();
+    state = mustAdd(addPlayer(state, {
+      sessionId: hostId,
+      displayName: 'Host',
+      isHost: true,
+      now: NOW,
+    })).state;
+    const playerIds: string[] = [hostId];
+    for (let i = 1; i < n; i++) {
+      const sid = uuid();
+      playerIds.push(sid);
+      state = mustAdd(addPlayer(state, {
+        sessionId: sid,
+        displayName: `P${i}`,
+        isHost: false,
+        now: NOW + i,
+      })).state;
+    }
+    return { state, hostId, playerIds };
+  };
+
+  it('transfer in lobby succeeds and swaps GM role', () => {
+    const { state, hostId, playerIds } = buildLobbyWithPlayers(3);
+    const targetId = playerIds[1]!;
+    const result = transferGm(state, { requesterId: hostId, targetId });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.hostSessionId).toBe(targetId);
+    expect(result.state.players.get(targetId)!.isHost).toBe(true);
+    expect(result.state.players.get(targetId)!.isReady).toBe(true);
+    expect(result.state.players.get(hostId)!.isHost).toBe(false);
+    expect(result.state.players.get(hostId)!.isReady).toBe(false);
+  });
+
+  it('returns updated oldGm and newGm for broadcast', () => {
+    const { state, hostId, playerIds } = buildLobbyWithPlayers(3);
+    const targetId = playerIds[2]!;
+    const result = transferGm(state, { requesterId: hostId, targetId });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.oldGm.sessionId).toBe(hostId);
+    expect(result.oldGm.isHost).toBe(false);
+    expect(result.newGm.sessionId).toBe(targetId);
+    expect(result.newGm.isHost).toBe(true);
+  });
+
+  it('rejects transfer during playing phase', () => {
+    let { state, hostId, playerIds } = buildLobbyWithPlayers(3);
+    state = { ...state, phase: 'playing' };
+    const result = transferGm(state, { requesterId: hostId, targetId: playerIds[1]! });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('wrong_phase');
+  });
+
+  it('rejects when requester is not GM', () => {
+    const { state, playerIds } = buildLobbyWithPlayers(3);
+    const nonGm = playerIds[1]!;
+    const target = playerIds[2]!;
+    const result = transferGm(state, { requesterId: nonGm, targetId: target });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('not_host');
+  });
+
+  it('rejects transfer to self', () => {
+    const { state, hostId } = buildLobbyWithPlayers(2);
+    const result = transferGm(state, { requesterId: hostId, targetId: hostId });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('cannot_transfer_to_self');
+  });
+
+  it('rejects transfer to non-existent player', () => {
+    const { state, hostId } = buildLobbyWithPlayers(2);
+    const result = transferGm(state, { requesterId: hostId, targetId: uuid() });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('target_not_found');
   });
 });
