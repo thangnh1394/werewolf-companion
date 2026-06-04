@@ -98,7 +98,16 @@ export function PlayingScreen({
 
       {/* Card + controls — centered vertically in remaining space */}
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-        {!card ? (
+        {isHost ? (
+          <div className="text-center px-6">
+            <p className="text-text-primary text-base font-medium mb-2">
+              Bạn là quản trò
+            </p>
+            <p className="text-text-secondary text-sm leading-relaxed">
+              Hãy điều phối trận đấu.
+            </p>
+          </div>
+        ) : !card ? (
           <p className="text-text-secondary text-sm italic">Đang nhận bài...</p>
         ) : (
           <>
@@ -124,8 +133,8 @@ export function PlayingScreen({
         )}
       </div>
 
-      {/* End Game button — host only, at bottom of screen */}
-      {isHost && card && (
+      {/* End Game button — GM only, always visible (GM has no card to reveal) */}
+      {isHost && (
         <div className="shrink-0 mt-4 pt-3 border-t border-bg-surface">
           <button
             type="button"
