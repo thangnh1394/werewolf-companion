@@ -69,7 +69,7 @@ export function RoomDeskPreview({ roomDesk, isHost, onEdit }: RoomDeskPreviewPro
                 {isEmpty
                   ? isHost
                     ? 'Chưa có thẻ nào · Bấm Sửa để chọn'
-                    : 'Chủ phòng chưa chọn thẻ nào'
+                    : 'Quản trò chưa chọn thẻ nào'
                   : `${totalCards} thẻ · Bấm để ${expanded ? 'thu gọn' : 'mở'}`}
               </div>
             </div>

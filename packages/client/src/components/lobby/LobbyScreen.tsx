@@ -346,11 +346,11 @@ function JoinErrorScreen({
     },
     room_not_found: {
       title: 'Không tìm thấy phòng',
-      body: 'Code phòng không tồn tại. Kiểm tra lại với chủ phòng.',
+      body: 'Code phòng không tồn tại. Kiểm tra lại với quản trò.',
     },
     room_in_progress: {
       title: 'Trận đấu đang diễn ra',
-      body: 'Trận đấu đã bắt đầu. Hãy chờ chủ phòng kết thúc rồi vào lại.',
+      body: 'Trận đấu đã bắt đầu. Hãy chờ quản trò kết thúc rồi vào lại.',
     },
     invalid_code: {
       title: 'Code không hợp lệ',
@@ -371,7 +371,7 @@ function KickedScreen({ onHome }: { onHome: () => void }) {
     <EdgeScreen
       icon={<DoorOpen />}
       title="Bạn đã bị mời ra khỏi phòng"
-      body="Chủ phòng đã quyết định mời bạn ra. Bạn có thể tạo phòng mới hoặc tham gia phòng khác."
+      body="Quản trò đã quyết định mời bạn ra. Bạn có thể tạo phòng mới hoặc tham gia phòng khác."
       onHome={onHome}
     />
   );
@@ -383,7 +383,7 @@ function RoomClosedScreen({ onHome }: { onHome: () => void }) {
       icon={<Flame />}
       iconMuted
       title="Phòng đã đóng"
-      body="Chủ phòng đã rời đi và không quay lại trong 5 phút. Ngọn lửa đã tắt."
+      body="Quản trò đã rời đi và không quay lại trong 5 phút. Ngọn lửa đã tắt."
       onHome={onHome}
     />
   );

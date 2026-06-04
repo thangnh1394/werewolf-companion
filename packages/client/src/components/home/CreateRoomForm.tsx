@@ -58,7 +58,7 @@ export function CreateRoomForm() {
         </button>
         <div>
           <h1 className="text-text-primary text-lg font-medium">Tạo phòng mới</h1>
-          <p className="text-text-secondary text-xs">Bạn sẽ là chủ phòng</p>
+          <p className="text-text-secondary text-xs">Bạn sẽ là quản trò</p>
         </div>
       </div>
 

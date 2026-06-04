@@ -41,7 +41,7 @@ export function AboutScreen() {
           </h2>
           <p className="text-text-secondary text-sm leading-relaxed">
             Ứng dụng chia bài ma sói qua điện thoại — không cần đem bộ bài vật lý.
-            Mỗi người chơi dùng điện thoại riêng, chủ phòng tạo phòng và chia sẻ
+            Mỗi người chơi dùng điện thoại riêng, quản trò tạo phòng và chia sẻ
             code/QR cho bạn bè. Miễn phí. Không quảng cáo.
           </p>
         </section>
