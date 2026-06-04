@@ -88,6 +88,17 @@ export const EndGameMessageSchema = z.object({
 });
 export type EndGameMessage = z.infer<typeof EndGameMessageSchema>;
 
+/**
+ * GM-only: transfer GM role to another player in the lobby.
+ * Only valid during phase === 'lobby'. Rejected during playing.
+ * Server broadcasts PLAYER_UPDATED for both old and new GM.
+ */
+export const TransferGmMessageSchema = z.object({
+  type: z.literal('TRANSFER_GM'),
+  targetSessionId: SessionIdSchema,
+});
+export type TransferGmMessage = z.infer<typeof TransferGmMessageSchema>;
+
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   JoinMessageSchema,
   SetReadyMessageSchema,
@@ -96,6 +107,7 @@ export const ClientMessageSchema = z.discriminatedUnion('type', [
   LeaveRoomMessageSchema,
   SetCardCountMessageSchema,
   EndGameMessageSchema,
+  TransferGmMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 

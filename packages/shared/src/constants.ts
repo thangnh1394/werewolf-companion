@@ -6,7 +6,7 @@
 export const ROOM_CODE_LENGTH = 6;
 export const ROOM_CODE_PATTERN = /^\d{6}$/;
 
-export const MIN_PLAYERS = 5;
+export const MIN_PLAYERS = 6;
 export const MAX_PLAYERS = 20;
 
 export const MIN_NAME_LENGTH = 1;

@@ -35,6 +35,7 @@ export const PublicPlayerSchema = z.object({
   /** Avatar id from @werewolf/shared AVATARS (optional for backward compat with pre-Phase-3.3 rooms). */
   avatarId: z.string().optional(),
   isReady: z.boolean(),
+  /** True if this player is the GM (Game Master). Renamed from "host" in Phase 4.1. */
   isHost: z.boolean(),
   joinedAt: z.number().int(), // epoch ms, used for stable join-order sorting
   isConnected: z.boolean(),
