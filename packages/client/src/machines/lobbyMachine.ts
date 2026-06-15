@@ -1,5 +1,6 @@
 import { assign, setup } from 'xstate';
 import type {
+  CurrentTurn,
   PublicPlayer,
   JoinErrorReason,
   RoomClosedReason,
@@ -36,6 +37,8 @@ export interface LobbyContext {
    * Null = no transition (e.g. legacy clients, or after transition consumed).
    */
   transitionVariant: TransitionVariant | null;
+  /** Current game-flow turn. Null during lobby phase. Phase 4.2 feature. */
+  currentTurn: CurrentTurn | null;
 }
 
 export type LobbyEvent =
@@ -46,6 +49,7 @@ export type LobbyEvent =
       roomDesk: Record<string, number>;
       phase: 'lobby' | 'playing';
       yourCard?: string;
+      currentTurn: CurrentTurn | null;
     }
   | { type: 'PLAYER_JOINED'; player: PublicPlayer }
   | { type: 'PLAYER_LEFT'; sessionId: SessionId }
@@ -57,6 +61,7 @@ export type LobbyEvent =
   | { type: 'GAME_ENDED' }
   | { type: 'YOUR_CARD'; cardId: string }
   | { type: 'ROOM_DESK_UPDATED'; deck: Record<string, number> }
+  | { type: 'TURN_ADVANCED'; currentTurn: CurrentTurn }
   | { type: 'CONNECTION_LOST' }
   | { type: 'CONNECTION_RESTORED' };
 
@@ -74,6 +79,12 @@ export const lobbyMachine = setup({
       roomDesk: ({ event }) => (event.type === 'STATE_SNAPSHOT' ? event.roomDesk : {}),
       yourCard: ({ context, event }) =>
         event.type === 'STATE_SNAPSHOT' ? (event.yourCard ?? null) : context.yourCard,
+      currentTurn: ({ event }) =>
+        event.type === 'STATE_SNAPSHOT' ? event.currentTurn : null,
+    }),
+    applyTurn: assign({
+      currentTurn: ({ event }) =>
+        event.type === 'TURN_ADVANCED' ? event.currentTurn : null,
     }),
     applyRoomDesk: assign({
       roomDesk: ({ context, event }) =>
@@ -136,6 +147,7 @@ export const lobbyMachine = setup({
     roomDesk: {},
     yourCard: null,
     transitionVariant: null,
+    currentTurn: null,
   }),
   states: {
     connecting: {
@@ -186,9 +198,10 @@ export const lobbyMachine = setup({
         PLAYER_JOINED: { actions: 'upsertPlayer' },
         PLAYER_UPDATED: { actions: 'upsertPlayer' },
         PLAYER_LEFT: { actions: 'removePlayer' },
+        TURN_ADVANCED: { actions: 'applyTurn' },
         GAME_ENDED: {
           target: 'in_lobby',
-          actions: ['clearCard', 'clearTransitionVariant'],
+          actions: ['clearCard', 'clearTransitionVariant', assign({ currentTurn: () => null })],
         },
         ROOM_CLOSED: {
           target: 'room_closed',
