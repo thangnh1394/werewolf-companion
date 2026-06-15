@@ -122,7 +122,8 @@ test.describe('G. Large room — 20 players, 5 games', () => {
 
         await waitForRealtime(hostPage, 13_000);
 
-        await expect(hostPage.getByText(/Bạn là quản trò/i)).toBeVisible({ timeout: 8_000 });
+        // Phase 4.2: GM view now shows turn indicator instead of static placeholder
+        await expect(hostPage.getByRole('button', { name: /Kết thúc đêm/i })).toBeVisible({ timeout: 8_000 });
         await hostPage.screenshot({ path: `${prefix}_03_playing.png` });
 
         const samplePage = nonHostPages[(game - 1) % nonHostPages.length];
