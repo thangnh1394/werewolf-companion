@@ -9,6 +9,7 @@ import {
 } from '@werewolf/shared';
 import {
   addPlayer,
+  advanceTurn,
   canStartGame,
   createEmptyLobby,
   dealCards,
@@ -150,6 +151,14 @@ export default class LobbyServer implements Party.Server {
         }
         await this.handleTransferGm(data.sessionId, msg.targetSessionId);
         return;
+
+      case 'ADVANCE_TURN':
+        if (!data) {
+          sender.close(1008, 'not_joined');
+          return;
+        }
+        await this.handleAdvanceTurn(data.sessionId);
+        return;
     }
   }
 
@@ -242,6 +251,7 @@ export default class LobbyServer implements Party.Server {
       players: getPlayersList(this.lobby),
       selfSessionId: sessionId,
       roomDesk: deckAsRecord(this.lobby),
+      currentTurn: this.lobby.currentTurn,
       ...(yourCard ? { yourCard } : {}),
     });
 
@@ -344,6 +354,17 @@ export default class LobbyServer implements Party.Server {
 
     this.broadcastMessage({ type: 'PLAYER_UPDATED', player: result.oldGm });
     this.broadcastMessage({ type: 'PLAYER_UPDATED', player: result.newGm });
+  }
+
+  private async handleAdvanceTurn(requesterId: SessionId): Promise<void> {
+    const result = advanceTurn(this.lobby, requesterId);
+    if (!result.ok) return;
+    this.lobby = result.newState!;
+    await this.persistState();
+    this.broadcastMessage({
+      type: 'TURN_ADVANCED',
+      currentTurn: result.newTurn!,
+    });
   }
 
   /**
@@ -472,6 +493,8 @@ interface SerializedState {
   roomDesk?: Array<[string, number]>;
   /** Optional for backward compat with rooms created before Phase 2.4. */
   assignments?: Array<[string, string]>;
+  /** Optional for backward compat with rooms created before Phase 4.2. */
+  currentTurn?: { day: number; phase: 'night' | 'day' } | null;
 }
 
 function serializeState(state: LobbyState): SerializedState {
@@ -483,6 +506,7 @@ function serializeState(state: LobbyState): SerializedState {
     hostDisconnectedAt: state.hostDisconnectedAt,
     roomDesk: Array.from(state.roomDesk.entries()),
     assignments: Array.from(state.assignments.entries()),
+    currentTurn: state.currentTurn,
   };
 }
 
@@ -495,5 +519,6 @@ function deserializeState(s: SerializedState): LobbyState {
     hostDisconnectedAt: s.hostDisconnectedAt,
     roomDesk: new Map(s.roomDesk ?? []),
     assignments: new Map((s.assignments ?? []) as Array<[SessionId, string]>),
+    currentTurn: s.currentTurn ?? null,
   };
 }
