@@ -99,6 +99,16 @@ export const TransferGmMessageSchema = z.object({
 });
 export type TransferGmMessage = z.infer<typeof TransferGmMessageSchema>;
 
+/**
+ * GM-only: advance the current turn (night→day or day→night+1).
+ * Only valid during phase === 'playing'. Rejected if sender is not GM.
+ * Phase 4.2 feature.
+ */
+export const AdvanceTurnMessageSchema = z.object({
+  type: z.literal('ADVANCE_TURN'),
+});
+export type AdvanceTurnMessage = z.infer<typeof AdvanceTurnMessageSchema>;
+
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   JoinMessageSchema,
   SetReadyMessageSchema,
@@ -108,10 +118,22 @@ export const ClientMessageSchema = z.discriminatedUnion('type', [
   SetCardCountMessageSchema,
   EndGameMessageSchema,
   TransferGmMessageSchema,
+  AdvanceTurnMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 
 // ---------- Server → Client messages ----------
+
+/**
+ * Shared schema for the current game-flow turn.
+ * Used in StateSnapshot and TurnAdvanced messages.
+ * Phase 4.2 feature.
+ */
+export const CurrentTurnSchema = z.object({
+  day: z.number().int().min(1),
+  phase: z.enum(['night', 'day']),
+});
+export type CurrentTurn = z.infer<typeof CurrentTurnSchema>;
 
 /**
  * Full snapshot of room state. Sent immediately after a successful JOIN.
@@ -128,6 +150,8 @@ export const StateSnapshotMessageSchema = z.object({
   roomDesk: RoomDeskSchema,
   /** The requesting player's own dealt card, if game is playing and they have one. Used for refresh restore. */
   yourCard: z.string().optional(),
+  /** Current game turn. Null during lobby phase. Phase 4.2 feature. */
+  currentTurn: CurrentTurnSchema.nullable(),
 });
 export type StateSnapshotMessage = z.infer<typeof StateSnapshotMessageSchema>;
 
@@ -224,6 +248,16 @@ export const GameEndedMessageSchema = z.object({
 });
 export type GameEndedMessage = z.infer<typeof GameEndedMessageSchema>;
 
+/**
+ * Broadcast to all clients when the GM advances the turn.
+ * Phase 4.2 feature.
+ */
+export const TurnAdvancedMessageSchema = z.object({
+  type: z.literal('TURN_ADVANCED'),
+  currentTurn: CurrentTurnSchema,
+});
+export type TurnAdvancedMessage = z.infer<typeof TurnAdvancedMessageSchema>;
+
 export const ServerMessageSchema = z.discriminatedUnion('type', [
   StateSnapshotMessageSchema,
   JoinErrorMessageSchema,
@@ -236,5 +270,6 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
   YourCardMessageSchema,
   RoomDeskUpdatedMessageSchema,
   GameEndedMessageSchema,
+  TurnAdvancedMessageSchema,
 ]);
 export type ServerMessage = z.infer<typeof ServerMessageSchema>;
