@@ -306,6 +306,13 @@ export default class LobbyServer implements Party.Server {
 
     // Broadcast phase change with the chosen transition — NO card information.
     this.broadcastMessage({ type: 'GAME_STARTED', transitionVariant });
+
+    // Broadcast initial turn state via TURN_ADVANCED so all clients can render
+    // the turn indicator as soon as the transition clears. GAME_STARTED itself
+    // intentionally carries no turn data (clients animate without knowing the turn).
+    if (this.lobby.currentTurn) {
+      this.broadcastMessage({ type: 'TURN_ADVANCED', currentTurn: this.lobby.currentTurn });
+    }
   }
 
   private async handleLeave(sessionId: SessionId): Promise<void> {
