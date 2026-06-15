@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { MAX_PLAYERS } from '@werewolf/shared';
 import {
   addPlayer,
+  advanceTurn,
   canStartGame,
   createEmptyLobby,
   dealCards,
@@ -895,5 +896,82 @@ describe('transferGm', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe('target_not_found');
+  });
+});
+
+// ---------- Phase 4.2: Turn Tracking ----------
+
+describe('advanceTurn', () => {
+  const identity = <T,>(a: T[]): T[] => [...a];
+
+  /** 6-player lobby (1 GM + 5 non-GM), dealt → playing, turn at given value. */
+  const buildPlayingWithTurn = (turn: { day: number; phase: 'night' | 'day' }) => {
+    let state = createEmptyLobby('482915');
+    const hostId = uuid();
+    state = mustAdd(addPlayer(state, { sessionId: hostId, displayName: 'GM', isHost: true, now: NOW })).state;
+    state = setPlayerReady(state, hostId, true)!.state;
+    for (let i = 1; i < 6; i++) {
+      const sid = uuid();
+      state = mustAdd(addPlayer(state, { sessionId: sid, displayName: `P${i}`, isHost: false, now: NOW + i })).state;
+      state = setPlayerReady(state, sid, true)!.state;
+    }
+    state = setCardCount(state, 'villager', 5);
+    state = dealCards(state, identity);
+    // Override currentTurn to the desired test value
+    state = { ...state, currentTurn: turn };
+    return { state, hostId };
+  };
+
+  it('night → day keeps same day number', () => {
+    const { state, hostId } = buildPlayingWithTurn({ day: 1, phase: 'night' });
+    const result = advanceTurn(state, hostId);
+    expect(result.ok).toBe(true);
+    expect(result.newTurn).toEqual({ day: 1, phase: 'day' });
+  });
+
+  it('day → night increments day number', () => {
+    const { state, hostId } = buildPlayingWithTurn({ day: 1, phase: 'day' });
+    const result = advanceTurn(state, hostId);
+    expect(result.ok).toBe(true);
+    expect(result.newTurn).toEqual({ day: 2, phase: 'night' });
+  });
+
+  it('non-GM cannot advance turn', () => {
+    const { state } = buildPlayingWithTurn({ day: 1, phase: 'night' });
+    const result = advanceTurn(state, uuid());
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('not_gm');
+  });
+
+  it('cannot advance during lobby phase', () => {
+    const state = createEmptyLobby('482915');
+    const hostId = uuid();
+    const lobbyState = mustAdd(addPlayer(state, { sessionId: hostId, displayName: 'GM', isHost: true, now: NOW })).state;
+    const result = advanceTurn(lobbyState, hostId);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('not_playing');
+  });
+
+  it('dealCards initializes currentTurn to night day 1', () => {
+    let state = createEmptyLobby('482915');
+    const hostId = uuid();
+    state = mustAdd(addPlayer(state, { sessionId: hostId, displayName: 'GM', isHost: true, now: NOW })).state;
+    state = setPlayerReady(state, hostId, true)!.state;
+    for (let i = 1; i < 6; i++) {
+      const sid = uuid();
+      state = mustAdd(addPlayer(state, { sessionId: sid, displayName: `P${i}`, isHost: false, now: NOW + i })).state;
+      state = setPlayerReady(state, sid, true)!.state;
+    }
+    state = setCardCount(state, 'villager', 5);
+    const dealt = dealCards(state, identity);
+    expect(dealt.currentTurn).toEqual({ day: 1, phase: 'night' });
+  });
+
+  it('endGame clears currentTurn back to null', () => {
+    const { state } = buildPlayingWithTurn({ day: 3, phase: 'day' });
+    const ended = endGame(state);
+    expect(ended.currentTurn).toBeNull();
   });
 });

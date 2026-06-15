@@ -1,4 +1,5 @@
 import type {
+  CurrentTurn,
   PublicPlayer,
   RoomPhase,
   SessionId,
@@ -37,6 +38,12 @@ export interface LobbyState {
    * Empty during lobby phase.
    */
   assignments: Map<SessionId, string>;
+  /**
+   * Current game-flow turn. Initialized on dealCards to {day:1, phase:'night'},
+   * mutated by advanceTurn, cleared back to null on endGame.
+   * Phase 4.2 feature.
+   */
+  currentTurn: CurrentTurn | null;
 }
 
 export function createEmptyLobby(roomCode: string): LobbyState {
@@ -48,6 +55,7 @@ export function createEmptyLobby(roomCode: string): LobbyState {
     hostDisconnectedAt: null,
     roomDesk: new Map(),
     assignments: new Map(),
+    currentTurn: null,
   };
 }
 
@@ -317,7 +325,7 @@ export function dealCards(
     assignments.set(p.sessionId, shuffled[i]!);
   });
 
-  return { ...state, phase: 'playing', assignments };
+  return { ...state, phase: 'playing', assignments, currentTurn: { day: 1, phase: 'night' } };
 }
 
 /**
@@ -380,6 +388,45 @@ export function endGame(state: LobbyState): LobbyState {
     phase: 'lobby',
     assignments: new Map(),
     players,
+    currentTurn: null,
     // roomDesk explicitly unchanged
+  };
+}
+
+// ---------- Phase 4.2: Turn Tracking ----------
+
+export interface AdvanceTurnResult {
+  ok: boolean;
+  reason?: 'not_gm' | 'not_playing' | 'no_active_turn';
+  newState?: LobbyState;
+  newTurn?: CurrentTurn;
+}
+
+/**
+ * GM advances the turn. Cycles: night → day (same day#) → night (day+1).
+ * Phase 4.2 feature.
+ */
+export function advanceTurn(
+  state: LobbyState,
+  requesterId: SessionId,
+): AdvanceTurnResult {
+  if (state.hostSessionId !== requesterId) {
+    return { ok: false, reason: 'not_gm' };
+  }
+  if (state.phase !== 'playing') {
+    return { ok: false, reason: 'not_playing' };
+  }
+  if (!state.currentTurn) {
+    return { ok: false, reason: 'no_active_turn' };
+  }
+
+  const newTurn: CurrentTurn = state.currentTurn.phase === 'night'
+    ? { day: state.currentTurn.day, phase: 'day' }
+    : { day: state.currentTurn.day + 1, phase: 'night' };
+
+  return {
+    ok: true,
+    newState: { ...state, currentTurn: newTurn },
+    newTurn,
   };
 }
