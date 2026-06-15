@@ -99,11 +99,11 @@ test.describe('E. Gameplay loop', () => {
     }
     await hostPage.screenshot({ path: 'screenshots/E1_transition_playing.png' });
 
-    // Wait for transition to finish (~8s video + 0.4s fade)
-    await waitForRealtime(hostPage, 10_000);
+    // Wait for transition to finish (~13s video + 0.4s fade)
+    await waitForRealtime(hostPage, 13_000);
 
-    // E2: GM sees placeholder; non-GM players see card UI
-    await expect(hostPage.getByText(/Bạn là quản trò/i)).toBeVisible({ timeout: 6000 });
+    // E2: Phase 4.2 — GM sees turn indicator + advance button; non-GM players see card UI
+    await expect(hostPage.getByRole('button', { name: /Kết thúc đêm/i })).toBeVisible({ timeout: 6000 });
     for (const page of nonHostPages) {
       await expect(page.getByText(/VAI CỦA BẠN|Giữ vào card|Đang nhận bài/i).first())
         .toBeVisible({ timeout: 6000 });

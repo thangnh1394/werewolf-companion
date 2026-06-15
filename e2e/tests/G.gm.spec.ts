@@ -76,7 +76,7 @@ test.describe('G. GM mode tests', () => {
         hostPage.getByRole('button', { name: /Kết thúc đêm/i }),
       ).toBeVisible({ timeout: 8_000 });
       // GM sees large "ĐÊM" label
-      await expect(hostPage.getByText('ĐÊM')).toBeVisible({ timeout: 5_000 });
+      await expect(hostPage.getByText('ĐÊM', { exact: true })).toBeVisible({ timeout: 5_000 });
 
       for (const page of playerPages) {
         await expect(page.getByText(/Đêm ngày 1/i)).toBeVisible({ timeout: 8_000 });
@@ -89,7 +89,7 @@ test.describe('G. GM mode tests', () => {
       await expect(
         hostPage.getByRole('button', { name: /Kết thúc ngày/i }),
       ).toBeVisible({ timeout: 5_000 });
-      await expect(hostPage.getByText('SÁNG')).toBeVisible({ timeout: 5_000 });
+      await expect(hostPage.getByText('SÁNG', { exact: true })).toBeVisible({ timeout: 5_000 });
 
       for (const page of playerPages) {
         await expect(page.getByText(/Sáng ngày 1/i)).toBeVisible({ timeout: 5_000 });
@@ -114,8 +114,8 @@ test.describe('G. GM mode tests', () => {
 
       // Should be back in lobby (player list visible, no turn indicators)
       await expect(hostPage.getByText('GM', { exact: false })).toBeVisible({ timeout: 8_000 });
-      await expect(hostPage.getByText('ĐÊM')).not.toBeVisible();
-      await expect(hostPage.getByText('SÁNG')).not.toBeVisible();
+      await expect(hostPage.getByText('ĐÊM', { exact: true })).not.toBeVisible();
+      await expect(hostPage.getByText('SÁNG', { exact: true })).not.toBeVisible();
     } finally {
       for (const ctx of allCtxs) await ctx.close();
     }
