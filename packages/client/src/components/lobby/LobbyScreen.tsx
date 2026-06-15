@@ -91,6 +91,8 @@ export function LobbyScreen() {
         isHost={viewerIsHost}
         onEndGame={actions.endGame}
         transitionVariant={context.transitionVariant}
+        currentTurn={context.currentTurn}
+        onAdvanceTurn={actions.advanceTurn}
       />
     );
   }

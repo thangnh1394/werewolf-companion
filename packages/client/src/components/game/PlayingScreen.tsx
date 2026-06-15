@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Flag, Flame, Info } from 'lucide-react';
-import { findCard, type TransitionVariant } from '@werewolf/shared';
+import { findCard, type CurrentTurn, type TransitionVariant } from '@werewolf/shared';
 import { formatRoomCode } from '../../lib/format';
+import { Button } from '../ui/Button';
 import { RevealCard } from './RevealCard';
+import { TurnIndicator } from './TurnIndicator';
 import { CardDetailDialog } from '../cards/CardDetailDialog';
 import { GameStartTransition } from './GameStartTransition';
 
@@ -16,6 +18,10 @@ interface PlayingScreenProps {
    * Null when joining/refreshing mid-game (no transition to show).
    */
   transitionVariant: TransitionVariant | null;
+  /** Current game turn. Null until server confirms game started. Phase 4.2 feature. */
+  currentTurn: CurrentTurn | null;
+  /** GM-only callback to advance the turn. Phase 4.2 feature. */
+  onAdvanceTurn: () => void;
 }
 
 /**
@@ -41,6 +47,8 @@ export function PlayingScreen({
   isHost,
   onEndGame,
   transitionVariant,
+  currentTurn,
+  onAdvanceTurn,
 }: PlayingScreenProps) {
   const card = cardId ? findCard(cardId) : undefined;
   const [showDetail, setShowDetail] = useState(false);
@@ -99,18 +107,42 @@ export function PlayingScreen({
       {/* Card + controls — centered vertically in remaining space */}
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
         {isHost ? (
-          <div className="text-center px-6">
-            <p className="text-text-primary text-base font-medium mb-2">
-              Bạn là quản trò
-            </p>
-            <p className="text-text-secondary text-sm leading-relaxed">
-              Hãy điều phối trận đấu.
-            </p>
+          <div className="flex flex-col items-center text-center px-6 w-full">
+            {currentTurn && (
+              <>
+                <TurnIndicator turn={currentTurn} variant="large" />
+                <p className="text-text-secondary text-sm leading-relaxed max-w-[280px] mt-2 mb-6">
+                  {currentTurn.phase === 'night'
+                    ? 'Sói tỉnh dậy. Hãy gọi từng vai trò thức dậy theo thứ tự.'
+                    : 'Cả làng tỉnh giấc. Bắt đầu thảo luận và bỏ phiếu treo cổ.'}
+                </p>
+                <Button
+                  fullWidth
+                  variant="primary"
+                  onClick={onAdvanceTurn}
+                  aria-label={currentTurn.phase === 'night' ? 'Kết thúc đêm' : 'Kết thúc ngày'}
+                >
+                  {currentTurn.phase === 'night' ? 'Kết thúc đêm' : 'Kết thúc ngày'}
+                </Button>
+              </>
+            )}
           </div>
         ) : !card ? (
-          <p className="text-text-secondary text-sm italic">Đang nhận bài...</p>
+          <>
+            {currentTurn && (
+              <div className="flex justify-center mb-3">
+                <TurnIndicator turn={currentTurn} variant="compact" />
+              </div>
+            )}
+            <p className="text-text-secondary text-sm italic">Đang nhận bài...</p>
+          </>
         ) : (
           <>
+            {currentTurn && (
+              <div className="flex justify-center mb-3">
+                <TurnIndicator turn={currentTurn} variant="compact" />
+              </div>
+            )}
             <RevealCard card={card} />
 
             <div className="mt-5 text-center">
@@ -139,7 +171,7 @@ export function PlayingScreen({
           <button
             type="button"
             onClick={onEndGame}
-            className="w-full bg-bg-surface border border-bg-surface-hi rounded-[12px] py-2.5 px-4 text-text-primary text-sm font-medium inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            className="w-full bg-bg-surface border border-bg-surface-hi rounded-xl py-2.5 px-4 text-text-primary text-sm font-medium inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
           >
             <Flag size={14} className="text-accent" aria-hidden />
             Kết thúc trận
